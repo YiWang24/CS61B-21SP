@@ -149,7 +149,7 @@ public class Model extends Observable {
                 Tile t = board.tile(i, j);
                 if (t != null) {
                     board.move(i, slowIndex--, t);
-                    changed = true;
+                    changed = j != length - 1;
                 }
             }
         }
