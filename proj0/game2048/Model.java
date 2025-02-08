@@ -148,28 +148,35 @@ public class Model extends Observable {
             for (int j = length - 1; j >= 0; j--) {
                 Tile t = board.tile(i, j);
                 if (t != null) {
+                    if (j != slowIndex) {
+                        changed = true;
+                    }
                     board.move(i, slowIndex--, t);
-                    changed = j != length - 1;
                 }
             }
         }
         return changed;
     }
 
-    public int combine() {
-        int score = 0;
+    public boolean combine() {
+        int scoreIncrease = 0;
+        boolean changed = false;
         int length = board.size();
+
         for (int i = 0; i < length; i++) {
             for (int j = length - 2; j >= 0; j--) {
                 Tile currentT = board.tile(i, j);
                 Tile prevT = board.tile(i, j + 1);
                 if (currentT != null && prevT != null && currentT.value() == prevT.value()) {
                     board.move(i, j + 1, currentT);
-                    score += currentT.value() * 2;
+                    scoreIncrease += currentT.value() * 2;
+                    changed = true;
                 }
             }
         }
-        return score;
+
+        score += scoreIncrease;
+        return changed;
     }
 
 
@@ -182,10 +189,10 @@ public class Model extends Observable {
 
         board.setViewingPerspective(side);
 
-        changed = moveAll();
-        score += combine();
-        moveAll();
-
+        boolean moved = moveAll();
+        boolean merged = combine();
+        boolean movedAgain = moveAll();
+        changed = moved || merged || movedAgain;
 
         board.setViewingPerspective(Side.NORTH);
         checkGameOver();
