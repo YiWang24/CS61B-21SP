@@ -136,18 +136,58 @@ public class Model extends Observable {
      * value, then the leading two tiles in the direction of motion merge,
      * and the trailing tile does not.
      */
-    public boolean tilt(Side side) {
+
+    public boolean moveAll() {
         boolean changed;
         changed = false;
 
+        int length = board.size();
+        for (int i = 0; i < length; i++) {
+            int slowIndex = length - 1;
+            // move all the number
+            for (int j = length - 1; j >= 0; j--) {
+                Tile t = board.tile(i, j);
+                if (t != null) {
+                    board.move(i, slowIndex--, t);
+                    changed = true;
+                }
+            }
+        }
+        return changed;
+    }
+
+    public int combine() {
+        int score = 0;
+        int length = board.size();
+        for (int i = 0; i < length; i++) {
+            for (int j = length - 2; j >= 0; j--) {
+                Tile currentT = board.tile(i, j);
+                Tile prevT = board.tile(i, j + 1);
+                if (currentT != null && prevT != null && currentT.value() == prevT.value()) {
+                    board.move(i, j + 1, currentT);
+                    score += currentT.value() * 2;
+                }
+            }
+        }
+        return score;
+    }
+
+
+    public boolean tilt(Side side) {
+        boolean changed;
+        changed = false;
         // TODO: Modify this.board (and perhaps this.score) to account
         // for the tilt to the Side SIDE. If the board changed, set the
         // changed local variable to true.
-        
+
+        board.setViewingPerspective(side);
+
+        changed = moveAll();
+        score += combine();
+        moveAll();
 
 
-
-
+        board.setViewingPerspective(Side.NORTH);
         checkGameOver();
         if (changed) {
             setChanged();
