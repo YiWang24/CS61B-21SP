@@ -86,12 +86,12 @@ public class LinkedListDeque<T> implements Deque<T>, Iterable<T> {
     }
 
     @Override
-    public String printDeque() {
+    public void printDeque() {
         List<String> list = new ArrayList<>();
         for (int i = 0; i < size; i++) {
             list.add(Objects.toString(get(i),"null"));
         }
-        return String.join(",", list);
+        System.out.println(String.join(",", list));
     }
 
     @Override

@@ -7,29 +7,26 @@ import java.util.Iterator;
  * @version 1.0
  **/
 
-public class ArrayDeque<T> implements Deque<T>,Iterable<T> {
+public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
     private T[] items;
     private int size;
-    private int capacity;
     private int nextFirst;
     private int nextLast;
 
     public ArrayDeque() {
         items = (T[]) new Object[8];
-        this.capacity = items.length;
-        nextFirst = capacity- 1;
+        nextFirst = items.length - 1;
         nextLast = 0;
         size = 0;
     }
+
     private void resize(int capacity) {
-        T[] newItems = (T[]) new Object[capacity];
-        for (int i = 1; i <= size; i++) {
-            newItems[i] = items[(++nextFirst)%this.capacity];
-        }
-        this.capacity = capacity;
-        nextFirst = 0;
-        nextLast = size+1;
-        items = newItems;
+        T[] a = (T[]) new Object[capacity];
+        for (int i = 0; i < size; i++)
+            a[i] = (T) items[(nextFirst + 1 + i) % items.length];
+        items = a;
+        nextFirst = items.length - 1;
+        nextLast = size;
     }
 
     @Override
@@ -39,18 +36,23 @@ public class ArrayDeque<T> implements Deque<T>,Iterable<T> {
 
     @Override
     public void addFirst(T item) {
-        if(items.length == size) resize(capacity*2);
+        if (size == items.length) {
+            resize(items.length * 2);
+        }
         items[nextFirst] = item;
+        nextFirst = nextFirst == 0 ? items.length - 1 : nextFirst - 1;
         size++;
-        nextFirst = nextFirst == 0 ? capacity - 1 : nextFirst -1;
 
     }
 
     @Override
     public void addLast(T item) {
+        if (size == items.length) {
+            resize(items.length * 2);
+        }
         items[nextLast] = item;
+        nextLast = (nextLast + 1) % items.length;
         size++;
-        nextLast++;
 
     }
 
@@ -65,22 +67,52 @@ public class ArrayDeque<T> implements Deque<T>,Iterable<T> {
     }
 
     @Override
-    public String printDeque() {
-        return "";
+    public void printDeque() {
+        for (int i = 0; i < size; i++) {
+            System.out.print(items[(nextFirst+1 + i)%items.length] + ",");
+        }
     }
 
     @Override
     public T removeFirst() {
-        return null;
+        if (size == 0) {
+            return null;
+        }
+
+        int first = (nextFirst + 1) % items.length;
+        T item = items[first];
+        items[first] = null;
+        size--;
+        nextFirst = first;
+
+        if (items.length > 16 && size < items.length / 4) {
+            resize(items.length / 2);
+        }
+        return item;
     }
 
     @Override
     public T removeLast() {
-        return null;
+        if (size == 0) {
+            return null;
+        }
+
+        int last = nextLast == 0 ? items.length - 1 : nextLast - 1;
+        T item = items[last];
+        items[last] = null;
+        size--;
+        nextLast = last;
+        if (items.length > 16 && size < items.length / 4) {
+            resize(items.length / 2);
+        }
+
+        return item;
+
     }
 
     @Override
     public T get(int index) {
-        return null;
+        int i = (nextFirst + index + 1) % items.length;
+        return items[i];
     }
 }

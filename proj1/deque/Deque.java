@@ -10,7 +10,7 @@ public interface Deque<T> {
 
     int size();
 
-    String printDeque();
+    void  printDeque();
 
     T removeFirst();
 
