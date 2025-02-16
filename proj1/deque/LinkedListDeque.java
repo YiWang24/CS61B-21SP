@@ -1,6 +1,5 @@
 package deque;
 
-import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
@@ -87,11 +86,12 @@ public class LinkedListDeque<T> implements Deque<T>, Iterable<T> {
 
     @Override
     public void printDeque() {
-        List<String> list = new ArrayList<>();
-        for (int i = 0; i < size; i++) {
-            list.add(Objects.toString(get(i),"null"));
+        Node current = sentinel.next;
+        for (int i = 0; i < size-1; i++) {
+            System.out.print(current.data + ",");
+            current = current.next;
         }
-        System.out.println(String.join(",", list));
+        System.out.println(current.data);
     }
 
     @Override
