@@ -1,5 +1,6 @@
 package deque;
 
+import edu.princeton.cs.algs4.StdRandom;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
@@ -11,6 +12,77 @@ import static org.junit.Assert.assertEquals;
  **/
 
 public class ArrayDequeTest {
+    @Test
+    public void testForEach() {
+        ArrayDeque<Integer> deque = new ArrayDeque<>();
+        for (int i = 0; i < 3; i++) {
+//            deque.addLast(i);
+            deque.addFirst(i);
+        }
+        for (Integer i : deque) {
+            System.out.println(i);
+        }
+
+    }
+
+    @Test
+    public void normalTest() {
+        Deque<Integer> arrayDeque = new ArrayDeque<>();
+        Deque<Integer> linkedListDeque = new LinkedListDeque<>();
+        for (int i = 0; i < 10000; i++) {
+            arrayDeque.addFirst(i);
+            linkedListDeque.addFirst(i);
+        }
+        for (int i = 0; i < 10000; i++) {
+            arrayDeque.addLast(i);
+            linkedListDeque.addLast(i);
+        }
+        for (int i = 0; i < arrayDeque.size(); i++) {
+            assertEquals(arrayDeque.get(i), linkedListDeque.get(i));
+            assertEquals(arrayDeque.removeFirst(), linkedListDeque.removeFirst());
+            assertEquals(arrayDeque.removeLast(), linkedListDeque.removeLast());
+        }
+
+    }
+
+    @Test
+    public void randomTest() {
+        ArrayDeque<Integer> arrayDeque = new ArrayDeque<>();
+        Deque<Integer> linkedListDeque = new LinkedListDeque<>();
+        int N = 10000;
+        for (int i = 0; i < N; i++) {
+            int operationNumber = StdRandom.uniform(0, 4);
+            if (operationNumber == 0) {
+                int randVal = StdRandom.uniform(0, N);
+                arrayDeque.addFirst(randVal);
+                linkedListDeque.addFirst(randVal);
+            } else if (operationNumber == 1) {
+                int randVal = StdRandom.uniform(0, N);
+                arrayDeque.addLast(randVal);
+                linkedListDeque.addLast(randVal);
+            } else if (operationNumber == 2) {
+                if(arrayDeque.isEmpty()){
+                    continue;
+                }
+                int remove = arrayDeque.removeFirst();
+                int remove2 = linkedListDeque.removeFirst();
+                assertEquals(remove, remove2);
+            } else if (operationNumber == 3) {
+                if(arrayDeque.isEmpty()){
+                    continue;
+                }
+                int remove = arrayDeque.removeLast();
+                int remove2 = linkedListDeque.removeLast();
+                assertEquals(remove, remove2);
+            }
+        }
+
+        for(int i = 0; i < arrayDeque.size(); i++){
+            assertEquals(arrayDeque.get(i), linkedListDeque.get(i));
+        }
+    }
+
+
     @Test
     public void getTest() {
         Deque<String> lld1 = new ArrayDeque<String>();
@@ -27,8 +99,6 @@ public class ArrayDequeTest {
 
 
     }
-
-
 
 
     @Test
@@ -109,8 +179,8 @@ public class ArrayDequeTest {
     public void multipleParamTest() {
 
 
-        Deque<String>  lld1 = new ArrayDeque<String>();
-        Deque<Double>  lld2 = new ArrayDeque<Double>();
+        Deque<String> lld1 = new ArrayDeque<String>();
+        Deque<Double> lld2 = new ArrayDeque<Double>();
         Deque<Boolean> lld3 = new ArrayDeque<Boolean>();
 
         lld1.addFirst("string");

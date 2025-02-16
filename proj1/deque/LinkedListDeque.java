@@ -1,8 +1,6 @@
 package deque;
 
 import java.util.Iterator;
-import java.util.List;
-import java.util.Objects;
 
 /**
  * @author WY
@@ -11,9 +9,9 @@ import java.util.Objects;
 
 public class LinkedListDeque<T> implements Deque<T>, Iterable<T> {
     private class Node {
-        public T data;
-        public Node prev;
-        public Node next;
+        private T data;
+        private Node prev;
+        private Node next;
 
         public Node(T data, Node prev, Node next) {
             this.data = data;
@@ -24,11 +22,11 @@ public class LinkedListDeque<T> implements Deque<T>, Iterable<T> {
     }
 
     private class LinkedListIterator implements Iterator<T> {
-        private Node current  = sentinel.next;
+        private Node current = sentinel.next;
 
         @Override
         public boolean hasNext() {
-            return current !=sentinel;
+            return current != sentinel;
         }
 
         @Override
@@ -87,7 +85,7 @@ public class LinkedListDeque<T> implements Deque<T>, Iterable<T> {
     @Override
     public void printDeque() {
         Node current = sentinel.next;
-        for (int i = 0; i < size-1; i++) {
+        for (int i = 0; i < size - 1; i++) {
             System.out.print(current.data + ",");
             current = current.next;
         }
@@ -138,7 +136,7 @@ public class LinkedListDeque<T> implements Deque<T>, Iterable<T> {
         return getRecursive(index, sentinel.next);
     }
 
-    public T getRecursive(int index, Node node) {
+    private T getRecursive(int index, Node node) {
         if (index == 0) {
             return node.data;
         }
@@ -147,12 +145,20 @@ public class LinkedListDeque<T> implements Deque<T>, Iterable<T> {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
         LinkedListDeque<?> that = (LinkedListDeque<?>) o;
-        if (size != that.size) return false;
+        if (size != that.size) {
+            return false;
+        }
         for (int i = 0; i < size; i++) {
-            if (!this.get(i).equals(that.get(i))) return false;
+            if (!this.get(i).equals(that.get(i))) {
+                return false;
+            }
         }
         return true;
 

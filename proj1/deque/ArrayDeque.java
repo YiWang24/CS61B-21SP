@@ -1,6 +1,8 @@
 package deque;
 
+import java.util.Arrays;
 import java.util.Iterator;
+import java.util.Objects;
 
 /**
  * @author WY
@@ -8,6 +10,22 @@ import java.util.Iterator;
  **/
 
 public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
+
+    private class ArrayDequeIterator implements Iterator<T> {
+        int first = (nextFirst + 1) % items.length;
+        @Override
+        public boolean hasNext() {
+            return items[first] != null;
+        }
+
+        @Override
+        public T next() {
+            T t = items[first];
+            first = (first + 1) % items.length;
+            return t;
+        }
+    }
+
     private T[] items;
     private int size;
     private int nextFirst;
@@ -22,8 +40,9 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
 
     private void resize(int capacity) {
         T[] a = (T[]) new Object[capacity];
-        for (int i = 0; i < size; i++)
+        for (int i = 0; i < size; i++) {
             a[i] = (T) items[(nextFirst + 1 + i) % items.length];
+        }
         items = a;
         nextFirst = items.length - 1;
         nextLast = size;
@@ -31,7 +50,7 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
 
     @Override
     public Iterator<T> iterator() {
-        return null;
+        return new ArrayDequeIterator();
     }
 
     @Override
@@ -68,10 +87,10 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
 
     @Override
     public void printDeque() {
-        for (int i = 0; i < size-1; i++) {
-            System.out.print(items[(nextFirst+1 + i)%items.length] + ",");
+        for (int i = 0; i < size - 1; i++) {
+            System.out.print(items[(nextFirst + 1 + i) % items.length] + ",");
         }
-        System.out.print(items[(nextFirst+size)%items.length]);
+        System.out.print(items[(nextFirst + size) % items.length]);
     }
 
     @Override
@@ -116,4 +135,29 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
         int i = (nextFirst + index + 1) % items.length;
         return items[i];
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        ArrayDeque<?> that = (ArrayDeque<?>) o;
+        if (size != that.size) {
+            return false;
+        }
+
+        for (int i = 0; i < size; i++) {
+            if (!this.get(i).equals(that.get(i))) {
+                return false;
+            }
+        }
+
+        return true;
+
+    }
+
+
 }
