@@ -6,13 +6,13 @@ public interface Deque<T> {
 
     void addLast(T item);
 
-    default boolean isEmpty(){
+    default boolean isEmpty() {
         return size() == 0;
     }
 
     int size();
 
-    void  printDeque();
+    void printDeque();
 
     T removeFirst();
 

@@ -1,6 +1,7 @@
 package deque;
 
 import java.util.Iterator;
+import java.util.Objects;
 
 /**
  * @author WY
@@ -144,15 +145,22 @@ public class LinkedListDeque<T> implements Deque<T>, Iterable<T> {
         if (this == o) {
             return true;
         }
-        if (o == null || getClass() != o.getClass()) {
+
+        if(!(o instanceof LinkedListDeque)) {
             return false;
         }
+
         LinkedListDeque<?> that = (LinkedListDeque<?>) o;
         if (size != that.size) {
             return false;
         }
-        for (int i = 0; i < size; i++) {
-            if (!this.get(i).equals(that.get(i))) {
+
+        Iterator<?> iterA = this.iterator();
+        Iterator<?> iterB = that.iterator();
+        while (iterA.hasNext()) {
+            Object a = iterA.next();
+            Object b = iterB.next();
+            if (!Objects.equals(a, b)) {
                 return false;
             }
         }
