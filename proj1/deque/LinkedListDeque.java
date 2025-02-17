@@ -13,7 +13,7 @@ public class LinkedListDeque<T> implements Deque<T>, Iterable<T> {
         private Node prev;
         private Node next;
 
-        public Node(T data, Node prev, Node next) {
+        Node(T data, Node prev, Node next) {
             this.data = data;
             this.prev = prev;
             this.next = next;
@@ -72,10 +72,6 @@ public class LinkedListDeque<T> implements Deque<T>, Iterable<T> {
 
     }
 
-    @Override
-    public boolean isEmpty() {
-        return size == 0;
-    }
 
     @Override
     public int size() {

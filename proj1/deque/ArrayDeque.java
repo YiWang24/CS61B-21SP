@@ -1,8 +1,6 @@
 package deque;
-
-import java.util.Arrays;
 import java.util.Iterator;
-import java.util.Objects;
+
 
 /**
  * @author WY
@@ -75,10 +73,7 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
 
     }
 
-    @Override
-    public boolean isEmpty() {
-        return size == 0;
-    }
+
 
     @Override
     public int size() {
@@ -145,12 +140,15 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
             return false;
         }
         ArrayDeque<?> that = (ArrayDeque<?>) o;
+
         if (size != that.size) {
             return false;
         }
 
-        for (int i = 0; i < size; i++) {
-            if (!this.get(i).equals(that.get(i))) {
+        Iterator<?> thisIterator = iterator();
+        Iterator<?> thatIterator = that.iterator();
+        while (thisIterator.hasNext() && thatIterator.hasNext()) {
+            if (!thisIterator.next().equals(thatIterator.next())) {
                 return false;
             }
         }
