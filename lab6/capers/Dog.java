@@ -60,7 +60,6 @@ public class Dog implements Serializable {
     public void saveDog() {
         File file = new File(DOG_FOLDER, name);
         Utils.writeObject(file,this);
-        System.out.println(toString());
     }
 
     @Override

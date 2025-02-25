@@ -50,7 +50,7 @@ public class CapersRepository {
     public static void writeStory(String text) {
         File story = new File(CAPERS_FOLDER, "story.txt");
         String s = readContentsAsString(story);
-        s = s + "\n" + text;
+        s = s  + text + "\n";
         Utils.writeContents(story, s);
         System.out.println(s);
     }
@@ -63,6 +63,7 @@ public class CapersRepository {
     public static void makeDog(String name, String breed, int age) {
         Dog dog = new Dog(name, breed, age);
         dog.saveDog();
+        System.out.println(dog.toString());
     }
 
     /**
