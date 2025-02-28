@@ -3,6 +3,7 @@ package hashmap;
 import static org.junit.Assert.*;
 import org.junit.Test;
 
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -20,6 +21,28 @@ public class TestMyHashMap {
         MyHashMap<Integer, String> c = new MyHashMap<>();
         MyHashMap<Boolean, Integer> d = new MyHashMap<>();
     }
+
+    @Test
+    public void forEachTest(){
+        MyHashMap<String, Integer> map = new MyHashMap<>();
+        map.put("Alice", 10);
+        map.put("Bob", 20);
+        map.put("Charlie", 30);
+
+        // 🟢 Create a set of expected keys
+        Set<String> expectedKeys = map.keySet();
+        Set<String> actualKeys = new HashSet<>();
+
+        // 🟢 Iterate using for-each loop
+        for (String key : map) {
+            System.out.println(key);
+            actualKeys.add(key);
+        }
+
+        // ✅ Check if actual keys match expected keys
+        assertEquals(expectedKeys, actualKeys);
+    }
+
 
     //assumes put/size/containsKey/get work
     @Test
