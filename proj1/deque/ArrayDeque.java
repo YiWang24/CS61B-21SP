@@ -1,7 +1,6 @@
 package deque;
 
 import java.util.Iterator;
-import java.util.Objects;
 
 
 /**
@@ -139,18 +138,22 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
             return true;
         }
 
-        if (!(o instanceof ArrayDeque)) {
+        if (o == null) {
             return false;
         }
 
-        ArrayDeque<?> that = (ArrayDeque<?>) o;
-
-        if (size != that.size()) {
+        if (!(o instanceof Deque)) {
             return false;
         }
 
-        for (int i = 0; i < size; i++) {
-            if(this.get(i) != that.get(i)) {
+        Deque<T> other = (Deque<T>) o;
+
+        if (this.size() != other.size()) {
+            return false;
+        }
+
+        for (int i = 0; i < size(); i++) {
+            if (!this.get(i).equals(other.get(i))) {
                 return false;
             }
         }
