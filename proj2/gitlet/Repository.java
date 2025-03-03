@@ -21,7 +21,6 @@ public class Repository implements Serializable {
      * variable is used. We've provided two examples for you.
      */
 
-
     public static final File CWD = new File(System.getProperty("user.dir"));
     public static final File GITLET_DIR = join(CWD, ".gitlet");
     public static final File COMMIT_DIR = new File(GITLET_DIR, "commits");
@@ -30,32 +29,25 @@ public class Repository implements Serializable {
     public static final File STAGING_DIR = new File(GITLET_DIR, "stagingArea");
     public static final File HEAD = new File(GITLET_DIR, "HEAD");
 
-
     public void init() {
         if (GITLET_DIR.exists()) {
             System.out.println("A Gitlet version-control system already exists in the current directory.");
             System.exit(0);
         }
-
         // create directory for GitLet
         GITLET_DIR.mkdir();
         COMMIT_DIR.mkdir();
         BRANCH_DIR.mkdir();
         STAGING_DIR.mkdir();
         BLOB_DIR.mkdir();
-
         // create initial commit
         Commit initCommit = new Commit();
         initCommit.saveCommit();
-
         //create default branch
         String branch = "master";
         saveBranch(branch, initCommit.getCommitId());
-
         //create head
         saveHead(branch);
-
-
     }
 
     public void add(String filename) {
@@ -82,9 +74,7 @@ public class Repository implements Serializable {
         //stage the file in addition area
         blob.saveBlob();
         stagingArea.stageFile(filename, blob.getId());
-
     }
-
 
     public void commit(String message) {
         // check the message is existed
@@ -98,17 +88,14 @@ public class Repository implements Serializable {
             System.out.println("No changes added to the commit.");
             System.exit(0);
         }
-
         Commit parentCommit = getCurrentCommit();
         Map<String, String> parentBlobs = parentCommit.getBlobs();
         Map<String, String> stagedForAddition = stagingArea.getStagedForAddition();
         Set<String> stagedForRemoval = stagingArea.getStagedForRemoval();
-
         parentBlobs.putAll(stagedForAddition);
         for (String fileToRemove : stagedForRemoval) {
             parentBlobs.remove(fileToRemove);
         }
-
         Commit newCommit = new Commit(message, parentCommit.getCommitId(), null, parentBlobs);
         newCommit.saveCommit();
         newCommit.saveCommit();
@@ -121,18 +108,15 @@ public class Repository implements Serializable {
         if (!removeFile.exists()) {
             System.exit(0);
         }
-
         StagingArea stagingArea = StagingArea.loadStagingArea();
         Commit currentCommit = getCurrentCommit();
         Map<String, String> stagedForAddition = stagingArea.getStagedForAddition();
         Map<String, String> blobs = currentCommit.getBlobs();
-
         // exit if stage or commit not include this file
         if (!stagedForAddition.containsKey(filename) && !blobs.containsKey(filename)) {
             System.out.println("No reason to remove the file.");
             System.exit(0);
         }
-
         if (stagedForAddition.containsKey(filename)) {
             stagedForAddition.remove(filename);
             stagingArea.save();
@@ -141,12 +125,10 @@ public class Repository implements Serializable {
             stagingArea.stageRemoval(filename);
             Utils.restrictedDelete(removeFile);
         }
-
     }
 
     public void log() {
         Commit currentCommit = getCurrentCommit();
-
         while (currentCommit != null) {
             System.out.println(currentCommit);
             if (currentCommit.getParent() == null) {
@@ -191,7 +173,6 @@ public class Repository implements Serializable {
         Map<String, String> currentBlobs = currentCommit.getBlobs();
 
         StringBuilder log = new StringBuilder("=== Branches ===" + "\n");
-
         for (String branch : branches) {
             if (branch.equals(currentBranch)) {
                 log.append("*").append(branch).append("\n");
@@ -200,26 +181,21 @@ public class Repository implements Serializable {
             }
         }
 
-        log.append("=== Staged Files ===").append("\n");
-
-
+        log.append("\n").append("=== Staged Files ===").append("\n");
         for (String stagedFile : stagedFails) {
             log.append(stagedFile).append("\n");
         }
 
-        log.append("=== Removed Files ===").append("\n");
-
+        log.append("\n").append("=== Removed Files ===").append("\n");
         for (String removedFile : removalFiles) {
             log.append(removedFile).append("\n");
         }
 
-        log.append("=== Modifications Not Staged For Commit ===").append("\n");
-
+        log.append("\n").append("=== Modifications Not Staged For Commit ===").append("\n");
         List<String> modifiedFiles = new ArrayList<>();
         for (String blob : currentBlobs.keySet()) {
             File file = new File(blob);
             String blobId = currentBlobs.get(blob);
-
             //Tracked in the current commit, changed in the working directory, but not staged;
             if (file.exists() && !stagedForAddition.containsKey(blob) && !Utils.sha1(Utils.readContentsAsString(file)).equals(blobId)) {
                 modifiedFiles.add(blob + " (modified)");
@@ -233,12 +209,10 @@ public class Repository implements Serializable {
         for (String blob : stagedForAddition.keySet()) {
             File file = new File(blob);
             String blobId = stagedForAddition.get(blob);
-
             //Staged for addition, but with different contents than in the working directory; or
             if (file.exists() && !Utils.sha1(Utils.readContentsAsString(file)).equals(blobId)) {
                 modifiedFiles.add(blob + " (modified)");
             }
-
             //Staged for addition, but deleted in the working directory;
             if (!file.exists() && !stagedForRemoval.contains(blob)) {
                 modifiedFiles.add(blob + " (deleted)");
@@ -249,16 +223,12 @@ public class Repository implements Serializable {
             log.append(modifiedFile).append("\n");
         }
 
-        log.append("=== Untracked Files ===").append("\n");
+        log.append("\n").append("=== Untracked Files ===").append("\n");
         List<String> untrackedFiles = getUntrackedFileList();
-
         for (String untrackedFile : untrackedFiles) {
             log.append(untrackedFile).append("\n");
         }
-
         System.out.println(log);
-
-
     }
 
     public void checkout(String[] args) {
@@ -272,10 +242,11 @@ public class Repository implements Serializable {
             System.out.println("File does not exist in that commit.");
             System.exit(0);
         }
-
     }
 
+    public void branch(String branch){
 
+    }
 
     private void checkoutFile(Commit commit, String fileName) {
         if (commit == null) {
@@ -306,18 +277,15 @@ public class Repository implements Serializable {
             System.out.println("No such branch exists.");
             System.exit(0);
         }
-
         if (branch.equals(getHead())) {
             System.out.println("No need to checkout the current branch.");
             System.exit(0);
         }
-
         List<String> untrackedFiles = getUntrackedFileList();
         if (!untrackedFiles.isEmpty()) {
             System.out.println("There is an untracked file in the way; delete it, or add and commit it first.");
             System.exit(0);
         }
-
         String commitId = getBranch(branch);
         Commit commit = Commit.load(commitId);
         Map<String, String> blobs = commit.getBlobs();
@@ -328,20 +296,15 @@ public class Repository implements Serializable {
                 Utils.writeContents(currentFile, Utils.readContentsAsString(oldFile));
             }
         }
-
         Commit currentCommit = getCurrentCommit();
         for (String blobId : currentCommit.getBlobs().keySet()) {
             if (!blobs.containsKey(blobId)) {
                 Utils.restrictedDelete(blobId);
             }
         }
-
         StagingArea stagingArea = StagingArea.loadStagingArea();
         stagingArea.clear();
-
         updateHead(branch);
-
-
     }
 
     private List<String> getUntrackedFileList() {
@@ -428,6 +391,4 @@ public class Repository implements Serializable {
     private void updateHead(String head) {
         Utils.writeContents(HEAD, head);
     }
-
-
 }

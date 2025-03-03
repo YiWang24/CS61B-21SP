@@ -59,6 +59,10 @@ public class Main {
             case "checkout":
                 repository.checkout(args);
                 break;
+            case "branch":
+                validate(args, 1);
+                repository.branch(args[1]);
+                break;
             default:
                 System.out.println("No command with that name exists.");
                 System.exit(0);

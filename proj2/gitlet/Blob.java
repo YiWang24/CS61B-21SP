@@ -26,30 +26,30 @@ public class Blob {
         return content;
     }
 
-    public void saveBlob(){
+    public void saveBlob() {
         File blobDir = Repository.BLOB_DIR;
         File blobFileDir = new File(blobDir, id.substring(0, 2));
         if (!blobFileDir.exists()) {
             blobFileDir.mkdir();
         }
         File blobFile = new File(blobFileDir, id.substring(2));
-        if(!blobFile.exists()){
+        if (!blobFile.exists()) {
             Utils.writeContents(blobFile, content);
         }
     }
 
-    public static void removeBlob(String blobId){
+    public static void removeBlob(String blobId) {
         File blobDir = Repository.BLOB_DIR;
         File blobFile = getBlob(blobId);
-        if(blobFile.exists()){
+        if (blobFile.exists()) {
             blobFile.delete();
         }
-        if(blobDir.isDirectory() && blobDir.list().length == 0){
+        if (blobDir.isDirectory() && blobDir.list().length == 0) {
             blobDir.delete();
         }
     }
 
-    public static File getBlob(String blobId){
+    public static File getBlob(String blobId) {
         File blobDir = Repository.BLOB_DIR;
         File blobFileDir = new File(blobDir, blobId.substring(0, 2));
         if (!blobFileDir.exists()) {
@@ -57,13 +57,6 @@ public class Blob {
         }
         return new File(blobFileDir, blobId.substring(2));
     }
-
-
-
-
-
-
-
 
 
 }

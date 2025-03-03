@@ -26,6 +26,7 @@ public class StagingArea implements Serializable, Dumpable {
 
     /**
      * load or create a staging area if not exist from disk.
+     *
      * @return StagingArea
      */
     public static StagingArea loadStagingArea() {
@@ -43,8 +44,9 @@ public class StagingArea implements Serializable, Dumpable {
 
     /**
      * Stage a file for addition
+     *
      * @param fileName the file to stage
-     * @param fileId the file hash id
+     * @param fileId   the file hash id
      */
     public void stageFile(String fileName, String fileId) {
         stagedForAddition.put(fileName, fileId);
@@ -54,10 +56,11 @@ public class StagingArea implements Serializable, Dumpable {
 
     /**
      * Stage a file for removal.
+     *
      * @param fileName the file for removal
      */
     public void stageRemoval(String fileName) {
-        if(!stagedForRemoval.contains(fileName)) {
+        if (!stagedForRemoval.contains(fileName)) {
             stagedForRemoval.add(fileName);
             stagedForAddition.remove(fileName);
             save();
