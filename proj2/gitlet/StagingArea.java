@@ -55,6 +55,19 @@ public class StagingArea implements Serializable, Dumpable {
     }
 
     /**
+     * unstage a file if it unchanged
+     * If the current working version of the file is identical to the version in the current commit,
+     * do not stage it to be added, and remove it from the staging area if it is already there.
+     *
+     * @param filename
+     */
+    public void unstageFile(String filename) {
+        stagedForAddition.remove(filename);
+        stagedForRemoval.remove(filename);
+        save();
+    }
+
+    /**
      * Stage a file for removal.
      *
      * @param fileName the file for removal

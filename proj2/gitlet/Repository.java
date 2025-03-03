@@ -31,7 +31,8 @@ public class Repository implements Serializable {
 
     public void init() {
         if (GITLET_DIR.exists()) {
-            System.out.println("A Gitlet version-control system already exists in the current directory.");
+            System.out.println("A Gitlet version-control system " +
+                    "already exists in the current directory.");
             System.exit(0);
         }
         // create directory for GitLet
@@ -66,13 +67,12 @@ public class Repository implements Serializable {
 
         //check if the blobs is created
         if (currentBlobs.containsKey(filename) && currentBlobs.get(filename).equals(blob.getId())) {
-            stagingArea.getStagedForAddition().remove(filename);
-            stagingArea.save();
+            stagingArea.unstageFile(filename);
             return;
         }
-
         //stage the file in addition area
         blob.saveBlob();
+        //Staging an already-staged file overwrites the previous entry in the staging area with the new contents.
         stagingArea.stageFile(filename, blob.getId());
     }
 
@@ -84,7 +84,8 @@ public class Repository implements Serializable {
         }
         StagingArea stagingArea = StagingArea.loadStagingArea();
         // check staging area is not null
-        if (stagingArea.getStagedForAddition().isEmpty() && stagingArea.getStagedForRemoval().isEmpty()) {
+        if (stagingArea.getStagedForAddition().isEmpty()
+                && stagingArea.getStagedForRemoval().isEmpty()) {
             System.out.println("No changes added to the commit.");
             System.exit(0);
         }
@@ -117,10 +118,13 @@ public class Repository implements Serializable {
             System.out.println("No reason to remove the file.");
             System.exit(0);
         }
+        //Unstage the file if it is currently staged for addition.
         if (stagedForAddition.containsKey(filename)) {
             stagedForAddition.remove(filename);
             stagingArea.save();
+            return;
         }
+        //If the file is tracked in the current commit, stage it for removal and remove the file from the working directory
         if (blobs.containsKey(filename)) {
             stagingArea.stageRemoval(filename);
             Utils.restrictedDelete(removeFile);
@@ -168,8 +172,7 @@ public class Repository implements Serializable {
         List<String> stagedFails = new ArrayList<>(stagedForAddition.keySet());
         Collections.sort(stagedFails);
         Set<String> stagedForRemoval = stagingArea.getStagedForRemoval();
-        List<String> removalFiles = new ArrayList<>(stagedForRemoval);
-        Collections.sort(removalFiles);
+
         Map<String, String> currentBlobs = currentCommit.getBlobs();
 
         StringBuilder log = new StringBuilder("=== Branches ===" + "\n");
@@ -187,9 +190,20 @@ public class Repository implements Serializable {
         }
 
         log.append("\n").append("=== Removed Files ===").append("\n");
+        for(String blob :currentBlobs.keySet() ) {
+            File file = new File(blob);
+            if(!file.exists()) {
+                if(!stagedForRemoval.contains(blob)) {
+                    stagedForRemoval.add(blob);
+                }
+            }
+        }
+        List<String> removalFiles = new ArrayList<>(stagedForRemoval);
+        Collections.sort(removalFiles);
         for (String removedFile : removalFiles) {
             log.append(removedFile).append("\n");
         }
+
 
         log.append("\n").append("=== Modifications Not Staged For Commit ===").append("\n");
         List<String> modifiedFiles = new ArrayList<>();
@@ -197,7 +211,9 @@ public class Repository implements Serializable {
             File file = new File(blob);
             String blobId = currentBlobs.get(blob);
             //Tracked in the current commit, changed in the working directory, but not staged;
-            if (file.exists() && !stagedForAddition.containsKey(blob) && !Utils.sha1(Utils.readContentsAsString(file)).equals(blobId)) {
+            if (file.exists()
+                    && !stagedForAddition.containsKey(blob)
+                    && !Utils.sha1(Utils.readContentsAsString(file)).equals(blobId)) {
                 modifiedFiles.add(blob + " (modified)");
             }
             //Not staged for removal, but tracked in the current commit and deleted from the working directory.
@@ -244,7 +260,7 @@ public class Repository implements Serializable {
         }
     }
 
-    public void branch(String branch){
+    public void branch(String branch) {
 
     }
 
@@ -283,7 +299,8 @@ public class Repository implements Serializable {
         }
         List<String> untrackedFiles = getUntrackedFileList();
         if (!untrackedFiles.isEmpty()) {
-            System.out.println("There is an untracked file in the way; delete it, or add and commit it first.");
+            System.out.println("There is an untracked file in the way; " +
+                    "delete it, or add and commit it first.");
             System.exit(0);
         }
         String commitId = getBranch(branch);
@@ -326,7 +343,7 @@ public class Repository implements Serializable {
             boolean inRemoval = stagedForRemoval.contains(file);
 
             //files present in the working directory but neither staged for addition nor tracked
-            if (!inCommit && !inStaging) {
+            if (!inCommit && !inStaging && !inRemoval) {
                 untrackedFiles.add(file);
             }
 
