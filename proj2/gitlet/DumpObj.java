@@ -27,7 +27,7 @@ import java.io.File;
  *  objects of your class.
  *  @author P. N. Hilfinger
  */
-public class DumpObj {
+public class  DumpObj {
 
     /** Deserialize and apply dump to the contents of each of the files
      *  in FILES. */

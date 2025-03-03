@@ -476,7 +476,8 @@ if __name__ == "__main__":
                 DEBUG = True
                 TIMEOUT = 100000
         if lib_dir is None:
-            lib_dir = join(abspath(environ['REPO_DIR']),
+
+            lib_dir = join('E:\W1work\YorkUniversity\CS61B',
                            "library-sp21/javalib")
         else:
             lib_dir = join(abspath(getcwd()), abspath(lib_dir))

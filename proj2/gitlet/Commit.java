@@ -1,26 +1,132 @@
 package gitlet;
 
-// TODO: any imports you need here
+import java.io.File;
+import java.io.Serializable;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.TimeZone;
 
-import java.util.Date; // TODO: You'll likely use this in this class
 
-/** Represents a gitlet commit object.
- *  TODO: It's a good idea to give a description here of what else this Class
- *  does at a high level.
+/**
+ * Represents a gitlet commit object.
+ * <p>
+ * does at a high level.
  *
- *  @author TODO
+ * @author Yi Wang
  */
-public class Commit {
+public class Commit implements Serializable, Dumpable {
     /**
-     * TODO: add instance variables here.
+     *
      *
      * List all instance variables of the Commit class here with a useful
      * comment above them describing what that variable represents and how that
      * variable is used. We've provided one example for `message`.
      */
 
-    /** The message of this Commit. */
+    /**
+     * The message of this Commit.
+     */
+    private static final long serialVersionUID = 1L;
+    private String commitId;
     private String message;
+    private Date timestamp;
+    private String parent;
+    private String mergeParent;
+    private Map<String, String> blobs = new HashMap<>();
 
-    /* TODO: fill in the rest of this class. */
+
+    public Commit() {
+        message = "initial commit";
+        parent = null;
+        timestamp = new Date(0);
+        commitId = Utils.sha1(Utils.serialize(this));
+    }
+
+
+    public Commit(String message, String parent, String mergeParent, Map<String, String> blobs) {
+        this.message = message;
+        this.parent = parent;
+        this.mergeParent = mergeParent;
+        this.timestamp = new Date();
+        this.blobs = blobs;
+        commitId = Utils.sha1(Utils.serialize(this));
+    }
+
+    public String getCommitId() {
+        return commitId;
+    }
+
+    public String getMessage() {
+        return message;
+    }
+
+    public Date getTimestamp() {
+        return timestamp;
+    }
+
+    public String getParent() {
+        return parent;
+    }
+
+    public String getMergeParent() {
+        return mergeParent;
+    }
+
+    public Map<String, String> getBlobs() {
+        return blobs;
+    }
+
+    public void saveCommit() {
+        File commitFile = new File(Repository.COMMIT_DIR, commitId);
+        Utils.writeObject(commitFile, this);
+    }
+
+    public static Commit load(String commitId) {
+        File commitFile = new File(Repository.COMMIT_DIR, commitId);
+        if (!commitFile.exists()) {
+            return null;
+        }
+        return Utils.readObject(commitFile, Commit.class);
+    }
+
+
+    @Override
+    public String toString() {
+        String s = "===" + "\n";
+        s += "commit " + commitId + "\n";
+        if (parent != null && mergeParent != null) {
+            String parentShort = parent.substring(0, 7);
+            String mergeParentShort = mergeParent.substring(0, 7);
+            s += "Merge: " + parentShort + " " + mergeParentShort + "\n";
+        }
+        // "Date" line
+        s += "Date: " + getCurrentTimestamp(timestamp) + "\n";
+        // message line
+        s += message + "\n";
+
+        return s;
+    }
+
+
+    @Override
+    public void dump() {
+        System.out.println("gitlet log of this commit:");
+        System.out.println(this);
+        System.out.println("map file name to blob:");
+        for (String fileName : blobs.keySet()) {
+            System.out.printf("file name: %s to blob ID: %s%n",
+                    fileName, blobs.get(fileName));
+        }
+        System.out.println("parent1: " + parent);
+    }
+
+    private static String getCurrentTimestamp(Date date) {
+        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("EEE MMM dd HH:mm:ss yyyy Z");
+        simpleDateFormat.setTimeZone(TimeZone.getDefault());
+        return simpleDateFormat.format(date);
+    }
+
+
 }
