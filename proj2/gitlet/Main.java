@@ -60,8 +60,16 @@ public class Main {
                 repository.checkout(args);
                 break;
             case "branch":
-                validate(args, 1);
+                validate(args, 2);
                 repository.branch(args[1]);
+                break;
+            case "rm-branch":
+                validate(args, 2);
+                repository.rmBranch(args[1]);
+                break;
+            case "reset":
+                validate(args, 2);
+                repository.reset(args[1]);
                 break;
             default:
                 System.out.println("No command with that name exists.");
@@ -84,18 +92,6 @@ public class Main {
             System.exit(0);
         }
 
-        if (firstArg.equals("checkout")) {
-            if (args.length == 3 && !args[1].equals("--")) {
-                // java gitlet.Main checkout -- [file name]
-                System.out.println("Incorrect operands.");
-                System.exit(0);
-            }
-            if (args.length == 4 && !args[2].equals("--")) {
-                // java gitlet.Main checkout [commit id] -- [file name]
-                System.out.println("Incorrect operands.");
-                System.exit(0);
-            }
-        }
 
     }
 

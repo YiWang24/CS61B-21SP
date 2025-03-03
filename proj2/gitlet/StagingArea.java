@@ -80,6 +80,20 @@ public class StagingArea implements Serializable, Dumpable {
         }
     }
 
+    public boolean isStagedForAddition(String filename) {
+        return stagedForAddition.containsKey(filename);
+    }
+
+    public boolean isStagedForRemoval(String filename) {
+        return stagedForRemoval.contains(filename);
+    }
+
+
+    public boolean isEmpty() {
+        return stagedForAddition.isEmpty() && stagedForRemoval.isEmpty();
+    }
+
+
     /**
      * clear the staging area.
      */
@@ -94,8 +108,22 @@ public class StagingArea implements Serializable, Dumpable {
         return stagedForAddition;
     }
 
+    public List<String> getStagedForAdditionList() {
+        Set<String> additionSet = stagedForAddition.keySet();
+        List<String> additionList = new ArrayList<>(additionSet);
+        Collections.sort(additionList);
+        return additionList;
+
+    }
+
     public Set<String> getStagedForRemoval() {
         return stagedForRemoval;
+    }
+
+    public List<String> getStagedForRemovalList() {
+        ArrayList<String> removalList = new ArrayList<>(stagedForRemoval);
+        Collections.sort(removalList);
+        return removalList;
     }
 
     /**

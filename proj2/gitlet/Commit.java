@@ -3,10 +3,7 @@ package gitlet;
 import java.io.File;
 import java.io.Serializable;
 import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.TimeZone;
+import java.util.*;
 
 
 /**
@@ -42,6 +39,7 @@ public class Commit implements Serializable, Dumpable {
         parent = null;
         timestamp = new Date(0);
         commitId = Utils.sha1(Utils.serialize(this));
+        saveCommit();
     }
 
 
@@ -52,6 +50,7 @@ public class Commit implements Serializable, Dumpable {
         this.timestamp = new Date();
         this.blobs = blobs;
         commitId = Utils.sha1(Utils.serialize(this));
+        saveCommit();
     }
 
     public String getCommitId() {
@@ -78,9 +77,15 @@ public class Commit implements Serializable, Dumpable {
         return blobs;
     }
 
-    public void saveCommit() {
-        File commitFile = new File(Repository.COMMIT_DIR, commitId);
-        Utils.writeObject(commitFile, this);
+    public String getBlobId(String blobName) {
+        return blobs.get(blobName);
+    }
+
+    public List<String> getBlobsList() {
+        Set<String> blobsSet = blobs.keySet();
+        List<String> blobsList = new ArrayList<>(blobsSet);
+        Collections.sort(blobsList);
+        return blobsList;
     }
 
     public static Commit load(String commitId) {
@@ -91,6 +96,19 @@ public class Commit implements Serializable, Dumpable {
         return Utils.readObject(commitFile, Commit.class);
     }
 
+    public static void removeBlobsFromCommit(Map<String, String> blobs, Set<String> filesToRemove) {
+        for (String fileToRemove : filesToRemove) {
+            blobs.remove(fileToRemove);
+        }
+    }
+
+    public Boolean isBlobExists(String filename, String blobId) {
+        return blobs.containsKey(filename) && blobs.get(filename).equals(blobId);
+    }
+
+    public Boolean isBlobExists(String filename) {
+        return blobs.containsKey(filename);
+    }
 
     @Override
     public String toString() {
@@ -122,11 +140,21 @@ public class Commit implements Serializable, Dumpable {
         System.out.println("parent1: " + parent);
     }
 
+
+
+
     private static String getCurrentTimestamp(Date date) {
         SimpleDateFormat simpleDateFormat = new SimpleDateFormat("EEE MMM dd HH:mm:ss yyyy Z");
         simpleDateFormat.setTimeZone(TimeZone.getDefault());
         return simpleDateFormat.format(date);
     }
+
+    private void saveCommit() {
+        File commitFile = new File(Repository.COMMIT_DIR, commitId);
+        Utils.writeObject(commitFile, this);
+    }
+
+
 
 
 }

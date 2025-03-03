@@ -29,10 +29,10 @@ public class Repository implements Serializable {
     public static final File STAGING_DIR = new File(GITLET_DIR, "stagingArea");
     public static final File HEAD = new File(GITLET_DIR, "HEAD");
 
+
     public void init() {
         if (GITLET_DIR.exists()) {
-            System.out.println("A Gitlet version-control system " +
-                    "already exists in the current directory.");
+            System.out.println("A Gitlet version-control system already exists in the current directory.");
             System.exit(0);
         }
         // create directory for GitLet
@@ -43,32 +43,21 @@ public class Repository implements Serializable {
         BLOB_DIR.mkdir();
         // create initial commit
         Commit initCommit = new Commit();
-        initCommit.saveCommit();
         //create default branch
-        String branch = "master";
-        saveBranch(branch, initCommit.getCommitId());
+        saveBranch("master", initCommit.getCommitId());
         //create head
-        saveHead(branch);
+        saveHead("master");
     }
 
     public void add(String filename) {
-        File addFile = new File(filename);
-
-        if (!addFile.exists()) {
-            System.out.println("File does not exist.");
-            System.exit(0);
-        }
-
+        File addFile = readFile(filename);
         //create the class we need
         StagingArea stagingArea = StagingArea.loadStagingArea();
-        Commit currentCommit = getCurrentCommit();
         Blob blob = new Blob(addFile);
-        Map<String, String> currentBlobs = currentCommit.getBlobs();
-
         //check if the blobs is created
-        if (currentBlobs.containsKey(filename) && currentBlobs.get(filename).equals(blob.getId())) {
+        if (getCurrentCommit().isBlobExists(filename, blob.getId())) {
             stagingArea.unstageFile(filename);
-            return;
+            System.exit(0);
         }
         //stage the file in addition area
         blob.saveBlob();
@@ -83,52 +72,26 @@ public class Repository implements Serializable {
             System.exit(0);
         }
         StagingArea stagingArea = StagingArea.loadStagingArea();
-        // check staging area is not null
-        if (stagingArea.getStagedForAddition().isEmpty()
-                && stagingArea.getStagedForRemoval().isEmpty()) {
-            System.out.println("No changes added to the commit.");
-            System.exit(0);
-        }
-        Commit parentCommit = getCurrentCommit();
-        Map<String, String> parentBlobs = parentCommit.getBlobs();
-        Map<String, String> stagedForAddition = stagingArea.getStagedForAddition();
-        Set<String> stagedForRemoval = stagingArea.getStagedForRemoval();
-        parentBlobs.putAll(stagedForAddition);
-        for (String fileToRemove : stagedForRemoval) {
-            parentBlobs.remove(fileToRemove);
-        }
-        Commit newCommit = new Commit(message, parentCommit.getCommitId(), null, parentBlobs);
-        newCommit.saveCommit();
-        newCommit.saveCommit();
-        stagingArea.clear();
-        saveBranch(getHead(), newCommit.getCommitId());
+        createCommit(message, stagingArea);
     }
 
     public void rm(String filename) {
-        File removeFile = new File(filename);
-        if (!removeFile.exists()) {
-            System.exit(0);
-        }
+        File removeFile = readFile(filename);
         StagingArea stagingArea = StagingArea.loadStagingArea();
-        Commit currentCommit = getCurrentCommit();
-        Map<String, String> stagedForAddition = stagingArea.getStagedForAddition();
-        Map<String, String> blobs = currentCommit.getBlobs();
-        // exit if stage or commit not include this file
-        if (!stagedForAddition.containsKey(filename) && !blobs.containsKey(filename)) {
-            System.out.println("No reason to remove the file.");
-            System.exit(0);
-        }
         //Unstage the file if it is currently staged for addition.
-        if (stagedForAddition.containsKey(filename)) {
-            stagedForAddition.remove(filename);
-            stagingArea.save();
+        if (stagingArea.isStagedForAddition(filename)) {
+            stagingArea.unstageFile(filename);
             return;
         }
         //If the file is tracked in the current commit, stage it for removal and remove the file from the working directory
-        if (blobs.containsKey(filename)) {
+        if (getCurrentCommit().isBlobExists(filename)) {
             stagingArea.stageRemoval(filename);
             Utils.restrictedDelete(removeFile);
+            return;
         }
+        // exit if stage or commit not include this file
+        System.out.println("No reason to remove the file.");
+        System.exit(0);
     }
 
     public void log() {
@@ -144,6 +107,7 @@ public class Repository implements Serializable {
 
     public void globalLog() {
         Set<Commit> commits = getAllCommits();
+        assert commits != null;
         for (Commit commit : commits) {
             System.out.println(commit);
         }
@@ -152,6 +116,7 @@ public class Repository implements Serializable {
     public void find(String message) {
         Set<Commit> commits = getAllCommits();
         boolean found = false;
+        assert commits != null;
         for (Commit commit : commits) {
             if (commit.getMessage().equals(message)) {
                 System.out.println(commit.getCommitId());
@@ -163,84 +128,48 @@ public class Repository implements Serializable {
         }
     }
 
+
     public void status() {
-        String currentBranch = getHead();
-        List<String> branches = getAllBranch();
         StagingArea stagingArea = StagingArea.loadStagingArea();
-        Commit currentCommit = getCurrentCommit();
-        Map<String, String> stagedForAddition = stagingArea.getStagedForAddition();
-        List<String> stagedFails = new ArrayList<>(stagedForAddition.keySet());
-        Collections.sort(stagedFails);
-        Set<String> stagedForRemoval = stagingArea.getStagedForRemoval();
-
-        Map<String, String> currentBlobs = currentCommit.getBlobs();
-
         StringBuilder log = new StringBuilder("=== Branches ===" + "\n");
+        //Print all branches
+        List<String> branches = getAllBranch();
         for (String branch : branches) {
-            if (branch.equals(currentBranch)) {
+            if (branch.equals(getHead())) {
                 log.append("*").append(branch).append("\n");
             } else {
                 log.append(branch).append("\n");
             }
         }
-
+        //Print all staged files
         log.append("\n").append("=== Staged Files ===").append("\n");
-        for (String stagedFile : stagedFails) {
+        List<String> stagedFiles = stagingArea.getStagedForAdditionList();
+        for (String stagedFile : stagedFiles) {
             log.append(stagedFile).append("\n");
         }
-
+        //Print all removed files
         log.append("\n").append("=== Removed Files ===").append("\n");
-        for(String blob :currentBlobs.keySet() ) {
+        List<String> stagedForRemovalList = stagingArea.getStagedForRemovalList();
+        for (String blob : getCurrentCommit().getBlobsList()) {
             File file = new File(blob);
-            if(!file.exists()) {
-                if(!stagedForRemoval.contains(blob)) {
-                    stagedForRemoval.add(blob);
-                }
+            //Case: If file is in Commit but removed manually, add this file in staged for removal;
+            if (!file.exists() && !stagingArea.isStagedForRemoval(blob)) {
+                stagedForRemovalList.add(blob);
             }
         }
-        List<String> removalFiles = new ArrayList<>(stagedForRemoval);
-        Collections.sort(removalFiles);
-        for (String removedFile : removalFiles) {
+        for (String removedFile : stagedForRemovalList) {
             log.append(removedFile).append("\n");
         }
-
-
+        //Print Modifications Not Staged For Commit
         log.append("\n").append("=== Modifications Not Staged For Commit ===").append("\n");
-        List<String> modifiedFiles = new ArrayList<>();
-        for (String blob : currentBlobs.keySet()) {
-            File file = new File(blob);
-            String blobId = currentBlobs.get(blob);
-            //Tracked in the current commit, changed in the working directory, but not staged;
-            if (file.exists()
-                    && !stagedForAddition.containsKey(blob)
-                    && !Utils.sha1(Utils.readContentsAsString(file)).equals(blobId)) {
-                modifiedFiles.add(blob + " (modified)");
-            }
-            //Not staged for removal, but tracked in the current commit and deleted from the working directory.
-            if (!file.exists() && !stagedForRemoval.contains(blob)) {
-                modifiedFiles.add(blob + " (deleted)");
-            }
-        }
-
-        for (String blob : stagedForAddition.keySet()) {
-            File file = new File(blob);
-            String blobId = stagedForAddition.get(blob);
-            //Staged for addition, but with different contents than in the working directory; or
-            if (file.exists() && !Utils.sha1(Utils.readContentsAsString(file)).equals(blobId)) {
-                modifiedFiles.add(blob + " (modified)");
-            }
-            //Staged for addition, but deleted in the working directory;
-            if (!file.exists() && !stagedForRemoval.contains(blob)) {
-                modifiedFiles.add(blob + " (deleted)");
-            }
-        }
-        Collections.sort(modifiedFiles);
+        List<String> modifiedFiles = getModificationsNotStagedList(getCurrentCommit(), stagingArea);
         for (String modifiedFile : modifiedFiles) {
             log.append(modifiedFile).append("\n");
         }
-
+        //Print Untracked Files
         log.append("\n").append("=== Untracked Files ===").append("\n");
-        List<String> untrackedFiles = getUntrackedFileList();
+        List<String> untrackedFiles = getUntrackedFileList(stagingArea);
+        assert untrackedFiles != null;
         for (String untrackedFile : untrackedFiles) {
             log.append(untrackedFile).append("\n");
         }
@@ -261,7 +190,28 @@ public class Repository implements Serializable {
     }
 
     public void branch(String branch) {
+        if (getBranch(branch) != null) {
+            System.out.println("A branch with that name already exists.");
+            System.exit(0);
+        }
+        saveBranch(branch, getCurrentCommit().getCommitId());
+    }
 
+    public void rmBranch(String branch) {
+        if (getBranch(branch) == null) {
+            System.out.println("A branch with that name does not exist.");
+            System.exit(0);
+        }
+        if (getBranch(branch).equals(getHead())) {
+            System.out.println("Cannot remove the current branch.");
+            System.exit(0);
+        }
+        deleteBranch(branch);
+    }
+
+    public void reset(String commitId) {
+        checkoutCommit(commitId);
+        saveBranch(getHead(), commitId);
     }
 
     private void checkoutFile(Commit commit, String fileName) {
@@ -269,22 +219,49 @@ public class Repository implements Serializable {
             System.out.println("No commit with that id exists.");
             System.exit(0);
         }
-
-        if (!commit.getBlobs().containsKey(fileName)) {
+        if (!commit.isBlobExists(fileName)) {
             System.out.println("File does not exist in that commit.");
             System.exit(0);
         }
-
-        String blobId = commit.getBlobs().get(fileName);
+        String blobId = commit.getBlobId(fileName);
         File blobFile = Blob.getBlob(blobId);
-        if (!blobFile.exists()) {
+        if (blobFile == null || !blobFile.exists()) {
             System.out.println("File does not exist in that commit.");
             System.exit(0);
         }
-
         String content = readContentsAsString(blobFile);
         File currentFile = new File(CWD, fileName);
         Utils.writeContents(currentFile, content);
+    }
+
+
+    private void checkoutCommit(String commitId) {
+        StagingArea stagingArea = StagingArea.loadStagingArea();
+        List<String> untrackedFiles = getUntrackedFileList(stagingArea);
+        assert untrackedFiles != null;
+        if (!untrackedFiles.isEmpty()) {
+            System.out.println("There is an untracked file in the way; " + "delete it, or add and commit it first.");
+            System.exit(0);
+        }
+        Commit commit = Commit.load(commitId);
+        if (commit == null) {
+            System.out.println("No commit with that id exists.");
+            System.exit(0);
+        }
+        //Write content from branch to current blob
+        for (String blob : commit.getBlobsList()) {
+            File oldFile = Blob.getBlob(commit.getBlobId(blob));
+            File FileToRewrite = new File(CWD, blob);
+            Utils.writeContents(FileToRewrite, Utils.readContentsAsString(oldFile));
+        }
+        //Remove current blob if it is not exist in old branch
+        for (String blob : getCurrentCommit().getBlobsList()) {
+            if (!commit.isBlobExists(blob)) {
+                File fileToDelete = new File(CWD, blob);
+                Utils.restrictedDelete(fileToDelete);
+            }
+        }
+        stagingArea.clear();
     }
 
     private void checkoutBranch(String branch) {
@@ -297,64 +274,80 @@ public class Repository implements Serializable {
             System.out.println("No need to checkout the current branch.");
             System.exit(0);
         }
-        List<String> untrackedFiles = getUntrackedFileList();
-        if (!untrackedFiles.isEmpty()) {
-            System.out.println("There is an untracked file in the way; " +
-                    "delete it, or add and commit it first.");
-            System.exit(0);
-        }
-        String commitId = getBranch(branch);
-        Commit commit = Commit.load(commitId);
-        Map<String, String> blobs = commit.getBlobs();
-        if (blobs != null) {
-            for (String blob : blobs.keySet()) {
-                File oldFile = Blob.getBlob(blobs.get(blob));
-                File currentFile = new File(CWD, blob);
-                Utils.writeContents(currentFile, Utils.readContentsAsString(oldFile));
-            }
-        }
-        Commit currentCommit = getCurrentCommit();
-        for (String blobId : currentCommit.getBlobs().keySet()) {
-            if (!blobs.containsKey(blobId)) {
-                Utils.restrictedDelete(blobId);
-            }
-        }
-        StagingArea stagingArea = StagingArea.loadStagingArea();
-        stagingArea.clear();
-        updateHead(branch);
+        checkoutCommit(getBranch(branch));
+        saveHead(branch);
     }
 
-    private List<String> getUntrackedFileList() {
-        StagingArea stagingArea = StagingArea.loadStagingArea();
-        Commit currentCommit = getCurrentCommit();
-        Map<String, String> stagedForAddition = stagingArea.getStagedForAddition();
-        Set<String> stagedForRemoval = stagingArea.getStagedForRemoval();
-        Map<String, String> currentBlobs = currentCommit.getBlobs();
+    private List<String> getModificationsNotStagedList(Commit commit, StagingArea stagingArea) {
+        List<String> modifiedFiles = new ArrayList<>();
+        for (String blob : commit.getBlobsList()) {
+            File file = new File(blob);
+            String blobId = commit.getBlobId(blob);
+            //Case: Tracked in the current commit, changed in the working directory, but not staged;
+            if (file.exists() && !stagingArea.isStagedForAddition(blob) && !Utils.sha1(Utils.readContentsAsString(file)).equals(blobId)) {
+                modifiedFiles.add(blob + " (modified)");
+            }
+        }
+        for (String blob : stagingArea.getStagedForAdditionList()) {
+            File file = new File(blob);
+            String blobId = stagingArea.getStagedForAddition().get(blob);
+            //Staged for addition, but with different contents than in the working directory;
+            if (file.exists() && !Utils.sha1(Utils.readContentsAsString(file)).equals(blobId)) {
+                modifiedFiles.add(blob + " (modified)");
+            }
+            //Staged for addition, but deleted in the working directory;
+            if (!file.exists() && !stagingArea.isStagedForRemoval(blob)) {
+                modifiedFiles.add(blob + " (deleted)");
+            }
+        }
+        Collections.sort(modifiedFiles);
+        return modifiedFiles;
+    }
 
+    private List<String> getUntrackedFileList(StagingArea stagingArea) {
         List<String> untrackedFiles = new ArrayList<>();
-        for (String file : Repository.CWD.list()) {
+        String[] list = CWD.list();
+        if (list == null) {
+            return null;
+        }
+        for (String file : list) {
             File f = new File(file);
             if (f.isDirectory()) {
                 continue;
             }
-
-            boolean inCommit = currentBlobs.containsKey(file);
-            boolean inStaging = stagedForAddition.containsKey(file);
-            boolean inRemoval = stagedForRemoval.contains(file);
-
+            boolean inCommit = getCurrentCommit().isBlobExists(file);
+            boolean inStaging = stagingArea.isStagedForAddition(file);
+            boolean inRemoval = stagingArea.isStagedForRemoval(file);
             //files present in the working directory but neither staged for addition nor tracked
             if (!inCommit && !inStaging && !inRemoval) {
                 untrackedFiles.add(file);
             }
-
             // files that have been staged for removal, but then re-created without Gitlet’s knowledge.
             if (inRemoval && f.exists()) {
                 untrackedFiles.add(file);
             }
-
         }
         Collections.sort(untrackedFiles);
         return untrackedFiles;
+    }
+
+    private void createCommit(String message, StagingArea stagingArea) {
+        //find the parent commit
+        Commit parentCommit = getCurrentCommit();
+        Map<String, String> parentBlobs = parentCommit.getBlobs();
+        // check staging area is not null
+        if (stagingArea.isEmpty()) {
+            System.out.println("No changes added to the commit.");
+            System.exit(0);
+        }
+        //Put all staged for addition into commit
+        parentBlobs.putAll(stagingArea.getStagedForAddition());
+        //Remove all staged for removal blobs from commit
+        Commit.removeBlobsFromCommit(parentBlobs, stagingArea.getStagedForRemoval());
+        //Create new commit
+        Commit commit = new Commit(message, parentCommit.getCommitId(), null, parentBlobs);
+        stagingArea.clear();
+        saveBranch(getHead(), commit.getCommitId());
     }
 
     private Set<Commit> getAllCommits() {
@@ -370,9 +363,9 @@ public class Repository implements Serializable {
         return commits;
     }
 
-    private void saveBranch(String branch, String commit) {
+    private void saveBranch(String branch, String commitId) {
         File branchFile = new File(BRANCH_DIR, branch);
-        Utils.writeContents(branchFile, commit);
+        Utils.writeContents(branchFile, commitId);
     }
 
     private String getBranch(String branch) {
@@ -383,9 +376,15 @@ public class Repository implements Serializable {
         return Utils.readContentsAsString(branchFile);
     }
 
+    private void deleteBranch(String branch) {
+        File branchFile = new File(BRANCH_DIR, branch);
+        if (branchFile.exists()) {
+            branchFile.delete();
+        }
+    }
+
     private List<String> getAllBranch() {
-        List<String> branches = new ArrayList<>(Arrays.asList(Repository.BRANCH_DIR.list()));
-        return branches;
+        return new ArrayList<>(Arrays.asList(Objects.requireNonNull(BRANCH_DIR.list())));
     }
 
     private Commit getCurrentCommit() {
@@ -405,7 +404,14 @@ public class Repository implements Serializable {
         return Utils.readContentsAsString(HEAD);
     }
 
-    private void updateHead(String head) {
-        Utils.writeContents(HEAD, head);
+
+    private File readFile(String fileName) {
+        File file = new File(fileName);
+        if (!file.exists()) {
+            System.out.println("File does not exist.");
+            System.exit(0);
+        }
+        return file;
     }
+
 }
