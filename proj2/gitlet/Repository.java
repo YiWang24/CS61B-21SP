@@ -268,7 +268,7 @@ public class Repository implements Serializable {
         allFiles.addAll(currentCommit.getBlobsList());
         allFiles.addAll(mergeCommit.getBlobsList());
         for (String file : allFiles) {
-            MergeFile(stagingArea, file, splitCommit, currentCommit, mergeCommit, isMerged);
+            mergeFile(stagingArea, file, splitCommit, currentCommit, mergeCommit, isMerged);
         }
         String message = String.format("Merged %s into %s.", branch, getHead());
 
@@ -280,7 +280,7 @@ public class Repository implements Serializable {
     }
 
 
-    private void MergeFile(StagingArea stagingArea, String file, Commit splitCommit, Commit currentCommit, Commit mergeCommit, AtomicBoolean isMerged) {
+    private void mergeFile(StagingArea stagingArea, String file, Commit splitCommit, Commit currentCommit, Commit mergeCommit, AtomicBoolean isMerged) {
         String splitBlob = splitCommit.getBlobId(file);
         String currentBlob = currentCommit.getBlobId(file);
         String mergeBlob = mergeCommit.getBlobId(file);
@@ -316,12 +316,12 @@ public class Repository implements Serializable {
         if (!Objects.equals(currentBlob, mergeBlob)
                 && mergeCommit.isBlobExists(file)
                 && currentCommit.isBlobExists(file)) {
-            String currentContent = readContentsAsString(new File(CWD, file));
-            String mergeContent = readContentsAsString(new File(BLOB_DIR, mergeBlob));
-            String conflictContent = "<<<<<<< HEAD\n" + currentContent + "=======\n" + mergeContent + ">>>>>>>\n";
-            File newFile = new File(CWD, file);
-            Utils.writeContents(newFile, conflictContent);
-            stagingArea.stageFile(file, new Blob(newFile).getId());
+            File currentFile = new File(CWD, file);
+            String currentContent = readContentsAsString(currentFile);
+            String mergeContent = readContentsAsString(Blob.getBlob(mergeBlob));
+            String conflictContent = "<<<<<<< HEAD\n" + currentContent + "\n" + "=======\n" + mergeContent + ">>>>>>>\n";
+            Utils.writeContents(currentFile, conflictContent);
+            stagingArea.stageFile(file, new Blob(currentFile).getId());
             isMerged.set(true);
         }
 
