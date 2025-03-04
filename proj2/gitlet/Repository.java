@@ -3,6 +3,7 @@ package gitlet;
 import java.io.File;
 import java.io.Serializable;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static gitlet.Utils.*;
 
@@ -32,7 +33,7 @@ public class Repository implements Serializable {
 
     public void init() {
         if (GITLET_DIR.exists()) {
-            System.out.println("A Gitlet version-control system already exists in the current directory.");
+            System.out.println("A Gitlet version-control system " + "already exists in the current directory.");
             System.exit(0);
         }
         // create directory for GitLet
@@ -61,7 +62,7 @@ public class Repository implements Serializable {
         }
         //stage the file in addition area
         blob.saveBlob();
-        //Staging an already-staged file overwrites the previous entry in the staging area with the new contents.
+        //Staging an already-staged file overwrites the previous
         stagingArea.stageFile(filename, blob.getId());
     }
 
@@ -86,7 +87,8 @@ public class Repository implements Serializable {
             stagingArea.unstageFile(filename);
             return;
         }
-        //If the file is tracked in the current commit, stage it for removal and remove the file from the working directory
+        //If the file is tracked in the current commit
+        //stage it for removal and remove the file from the working directory
         if (getCurrentCommit().isBlobExists(filename)) {
             stagingArea.stageRemoval(filename);
             Utils.restrictedDelete(removeFile);
@@ -109,7 +111,7 @@ public class Repository implements Serializable {
     }
 
     public void globalLog() {
-        Set<Commit> commits = getAllCommits();
+        Set<Commit> commits = Commit.getAllCommits();
         assert commits != null;
         for (Commit commit : commits) {
             System.out.println(commit);
@@ -117,7 +119,7 @@ public class Repository implements Serializable {
     }
 
     public void find(String message) {
-        Set<Commit> commits = getAllCommits();
+        Set<Commit> commits = Commit.getAllCommits();
         boolean found = false;
         assert commits != null;
         for (Commit commit : commits) {
@@ -184,14 +186,14 @@ public class Repository implements Serializable {
             checkoutFile(getCurrentCommit(), args[2]);
         } else if (args.length == 4 && args[2].equals("--")) {
             String commitId = args[1];
-            if(commitId.length() == 8){
-                commitId = findCommitByPrefix(commitId);
+            if (commitId.length() == 8) {
+                commitId = Commit.findCommitByPrefix(commitId);
             }
             checkoutFile(Commit.load(commitId), args[3]);
         } else if (args.length == 2) {
             String commitId = args[1];
-            if(commitId.length() == 8){
-                commitId = findCommitByPrefix(commitId);
+            if (commitId.length() == 8) {
+                commitId = Commit.findCommitByPrefix(commitId);
             }
             checkoutBranch(commitId);
         } else {
@@ -227,18 +229,121 @@ public class Repository implements Serializable {
         saveBranch(getHead(), commitId);
     }
 
-    private String findCommitByPrefix(String prefix) {
-        Set<Commit> commits = getAllCommits();
-        if(commits == null) {
-            return null;
+    public void merge(String branch) {
+        StagingArea stagingArea = StagingArea.loadStagingArea();
+        if (!stagingArea.isEmpty()) {
+            System.out.println("You have uncommitted changes.");
+            System.exit(0);
         }
-        for (Commit commit : commits) {
-            if (commit.getCommitId().startsWith(prefix)) {
-                return commit.getCommitId();
+        Commit mergeCommit = Commit.load(getBranch(branch));
+        Commit currentCommit = getCurrentCommit();
+        if (mergeCommit == null) {
+            System.out.println("A branch with that name does not exist.");
+            System.exit(0);
+        }
+        assert currentCommit != null;
+        if (currentCommit.getCommitId().equals(mergeCommit.getCommitId())) {
+            System.out.println("Cannot merge a branch with itself.");
+            System.exit(0);
+        }
+        if (getUntrackedFileList(stagingArea) != null) {
+            System.out.println("There is an untracked file in the way; delete it, or add and commit it first.");
+            System.exit(0);
+        }
+        String splitPoint = findSplitPoint(currentCommit, mergeCommit);
+        Commit splitCommit = Commit.load(splitPoint);
+        assert splitPoint != null;
+        if (splitPoint.equals(mergeCommit.getCommitId())) {
+            System.out.println("Given branch is an ancestor of the current branch.");
+            System.exit(0);
+        }
+        if (splitPoint.equals(getCurrentCommit().getCommitId())) {
+            checkoutBranch(branch);
+            System.out.println("Current branch fast-forwarded.");
+            System.exit(0);
+        }
+
+        Map<String, String> newBlobs = new HashMap<>();
+        AtomicBoolean isMerged = new AtomicBoolean(false);
+        Set<String> allFiles = new HashSet<>();
+        assert splitCommit != null;
+        allFiles.addAll(splitCommit.getBlobsList());
+        allFiles.addAll(currentCommit.getBlobsList());
+        allFiles.addAll(mergeCommit.getBlobsList());
+        for (String file : allFiles) {
+            MergeFile(stagingArea, newBlobs, file, splitCommit, currentCommit, mergeCommit, isMerged);
+        }
+        String message = String.format("Merged [%s] into [%s].", branch, getHead());
+        new Commit(message, currentCommit.getCommitId(), mergeCommit.getCommitId(), currentCommit.getBlobs());
+        if (isMerged.getPlain()) {
+            System.out.println("Encountered a merge conflict.");
+        }
+    }
+
+    private void MergeFile(StagingArea stagingArea, Map<String, String> newBlobs, String file, Commit splitCommit, Commit currentCommit, Commit mergeCommit, AtomicBoolean isMerged) {
+        String splitBlob = splitCommit.getBlobId(file);
+        String currentBlob = currentCommit.getBlobId(file);
+        String mergeBlob = mergeCommit.getBlobId(file);
+        //Any files that have been modified in the given branch since the split point,
+        //but not modified in the current branch
+        if (!mergeBlob.equals(splitBlob) && currentBlob.equals(mergeBlob)) {
+            checkoutFile(mergeCommit, file);
+            stagingArea.stageFile(file, mergeBlob);
+            return;
+        }
+        if (!splitCommit.isBlobExists(file) && !currentCommit.isBlobExists(file) && mergeCommit.isBlobExists(file)) {
+            checkoutFile(mergeCommit, file);
+            stagingArea.stageFile(file, mergeBlob);
+            return;
+        }
+        if (splitCommit.isBlobExists(file) && currentBlob.equals(mergeBlob) && !mergeCommit.isBlobExists(file)) {
+            rm(file);
+            return;
+        }
+        if (!currentBlob.equals(mergeBlob)) {
+            String currentContent = readContentsAsString(new File(CWD, file));
+            String mergeContent = readContentsAsString(new File(BLOB_DIR, mergeBlob));
+            String conflictContent = "<<<<<<< HEAD\n" + currentContent + "=======\n" + mergeContent + ">>>>>>>\n";
+            File newFile = new File(CWD, file);
+            Utils.writeContents(newFile, conflictContent);
+            stagingArea.stageFile(file, new Blob(newFile).getId());
+            isMerged.set(true);
+        }
+
+    }
+
+    private String findSplitPoint(Commit currentBranch, Commit mergeBranch) {
+        Set<String> visited = new HashSet<>();
+        String commit1 = currentBranch.getCommitId();
+        String commit2 = mergeBranch.getCommitId();
+        Queue<String> queue1 = new LinkedList<>();
+        Queue<String> queue2 = new LinkedList<>();
+
+        queue1.add(commit1);
+        queue2.add(commit2);
+
+        while (!queue1.isEmpty() || !queue2.isEmpty()) {
+            if (!queue1.isEmpty()) {
+                String current = queue1.poll();
+                if (visited.contains(current)) {
+                    return current;
+                }
+                visited.add(current);
+                queue1.add(Commit.getParent(commit1));
+            }
+
+            if (!queue2.isEmpty()) {
+                String current = queue2.poll();
+                if (visited.contains(current)) {
+                    return current;
+                }
+                visited.add(current);
+                queue2.add(Commit.getParent(commit2));
             }
         }
         return null;
     }
+
 
     private void checkoutFile(Commit commit, String fileName) {
         if (commit == null) {
@@ -277,8 +382,8 @@ public class Repository implements Serializable {
         //Write content from branch to current blob
         for (String blob : commit.getBlobsList()) {
             File oldFile = Blob.getBlob(commit.getBlobId(blob));
-            File FileToRewrite = new File(CWD, blob);
-            Utils.writeContents(FileToRewrite, Utils.readContentsAsString(oldFile));
+            File fileToRewrite = new File(CWD, blob);
+            Utils.writeContents(fileToRewrite, Utils.readContentsAsString(oldFile));
         }
         //Remove current blob if it is not exist in old branch
         for (String blob : getCurrentCommit().getBlobsList()) {
@@ -289,7 +394,7 @@ public class Repository implements Serializable {
         }
         //Remove tracked files that are not present in that commit
         for (String stagedFile : stagedForAdditionList) {
-            if(!commit.isBlobExists(stagedFile)) {
+            if (!commit.isBlobExists(stagedFile)) {
                 File fileToDelete = new File(CWD, stagedFile);
                 Utils.restrictedDelete(fileToDelete);
             }
@@ -355,7 +460,8 @@ public class Repository implements Serializable {
             if (!inCommit && !inStaging && !inRemoval) {
                 untrackedFiles.add(file);
             }
-            // files that have been staged for removal, but then re-created without Gitlet’s knowledge.
+            // files that have been staged for removal
+            // but then re-created without Gitlet’s knowledge.
             if (inRemoval && f.exists()) {
                 untrackedFiles.add(file);
             }
@@ -381,19 +487,6 @@ public class Repository implements Serializable {
         Commit commit = new Commit(message, parentCommit.getCommitId(), null, parentBlobs);
         stagingArea.clear();
         saveBranch(getHead(), commit.getCommitId());
-    }
-
-    private Set<Commit> getAllCommits() {
-        Set<Commit> commits = new HashSet<>();
-        List<String> commitList = plainFilenamesIn(COMMIT_DIR);
-        if (commitList == null) {
-            return null;
-        }
-        for (String commitId : commitList) {
-            Commit commit = Commit.load(commitId);
-            commits.add(commit);
-        }
-        return commits;
     }
 
     private void saveBranch(String branch, String commitId) {
@@ -436,7 +529,6 @@ public class Repository implements Serializable {
         }
         return Utils.readContentsAsString(HEAD);
     }
-
 
     private File readFile(String fileName) {
         File file = new File(fileName);

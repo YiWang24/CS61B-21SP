@@ -20,7 +20,6 @@ public class Main {
         }
 
         Repository repository = new Repository();
-
         String firstArg = args[0];
 
         switch (firstArg) {
@@ -71,6 +70,9 @@ public class Main {
                 validate(args, 2);
                 repository.reset(args[1]);
                 break;
+            case "merge":
+                validate(args, 2);
+                repository.merge(args[1]);
             default:
                 System.out.println("No command with that name exists.");
                 System.exit(0);
@@ -81,18 +83,14 @@ public class Main {
 
     public static void validate(String[] args, int n) {
         String firstArg = args[0];
-
         if (!firstArg.equals("init") && !Repository.GITLET_DIR.exists()) {
             System.out.println("Not in an initialized Gitlet directory.");
             System.exit(0);
         }
-
         if (args.length != n) {
             System.out.println("Incorrect operands.");
             System.exit(0);
         }
-
-
     }
 
 

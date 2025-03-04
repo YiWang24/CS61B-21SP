@@ -5,6 +5,8 @@ import java.io.Serializable;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
+import static gitlet.Utils.plainFilenamesIn;
+
 
 /**
  * Represents a gitlet commit object.
@@ -61,10 +63,6 @@ public class Commit implements Serializable, Dumpable {
         return message;
     }
 
-    public Date getTimestamp() {
-        return timestamp;
-    }
-
     public String getParent() {
         return parent;
     }
@@ -78,6 +76,9 @@ public class Commit implements Serializable, Dumpable {
     }
 
     public String getBlobId(String blobName) {
+        if(!blobs.containsKey(blobName)) {
+            return null;
+        }
         return blobs.get(blobName);
     }
 
@@ -95,6 +96,54 @@ public class Commit implements Serializable, Dumpable {
         }
         return Utils.readObject(commitFile, Commit.class);
     }
+
+    public static Set<Commit> getAllCommits() {
+        Set<Commit> commits = new HashSet<>();
+        List<String> commitList = plainFilenamesIn(Repository.COMMIT_DIR);
+        if (commitList == null) {
+            return null;
+        }
+        for (String commitId : commitList) {
+            Commit commit = Commit.load(commitId);
+            commits.add(commit);
+        }
+        return commits;
+    }
+
+    public static List<String> getCommitList(String commitId) {
+        List<String> commitList = new ArrayList<>();
+        Commit currentCommit = load(commitId);
+        while (currentCommit != null) {
+            commitList.add(currentCommit.getCommitId());
+            if (currentCommit.getParent() == null) {
+                break;
+            }
+            currentCommit = load(currentCommit.getParent());
+        }
+        return commitList;
+    }
+
+    public static String getParent(String commitId) {
+        Commit commit = load(commitId);
+        if (commit == null) {
+            return null;
+        }
+        return commit.getParent();
+    }
+
+    public static String findCommitByPrefix(String prefix) {
+        Set<Commit> commits = getAllCommits();
+        if (commits == null) {
+            return null;
+        }
+        for (Commit commit : commits) {
+            if (commit.getCommitId().startsWith(prefix)) {
+                return commit.getCommitId();
+            }
+        }
+        return null;
+    }
+
 
     public static void removeBlobsFromCommit(Map<String, String> blobs, Set<String> filesToRemove) {
         for (String fileToRemove : filesToRemove) {
@@ -134,13 +183,10 @@ public class Commit implements Serializable, Dumpable {
         System.out.println(this);
         System.out.println("map file name to blob:");
         for (String fileName : blobs.keySet()) {
-            System.out.printf("file name: %s to blob ID: %s%n",
-                    fileName, blobs.get(fileName));
+            System.out.printf("file name: %s to blob ID: %s%n", fileName, blobs.get(fileName));
         }
         System.out.println("parent1: " + parent);
     }
-
-
 
 
     private static String getCurrentTimestamp(Date date) {
@@ -153,8 +199,6 @@ public class Commit implements Serializable, Dumpable {
         File commitFile = new File(Repository.COMMIT_DIR, commitId);
         Utils.writeObject(commitFile, this);
     }
-
-
 
 
 }
