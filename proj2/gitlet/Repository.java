@@ -33,7 +33,8 @@ public class Repository implements Serializable {
 
     public void init() {
         if (GITLET_DIR.exists()) {
-            System.out.println("A Gitlet version-control system " + "already exists in the current directory.");
+            System.out.println("A Gitlet version-control system "
+                    + "already exists in the current directory.");
             System.exit(0);
         }
         // create directory for GitLet
@@ -246,7 +247,8 @@ public class Repository implements Serializable {
             System.exit(0);
         }
         if (!Objects.requireNonNull(getUntrackedFileList(stagingArea)).isEmpty()) {
-            System.out.println("There is an untracked file in the way; delete it, or add and commit it first.");
+            System.out.println("There is an untracked file in the way;" +
+                    " delete it, or add and commit it first.");
             System.exit(0);
         }
         String splitPoint = findSplitPoint(currentCommit, mergeCommit);
@@ -280,34 +282,52 @@ public class Repository implements Serializable {
     }
 
 
-    private void mergeFile(StagingArea stagingArea, String file, Commit splitCommit, Commit currentCommit, Commit mergeCommit, AtomicBoolean isMerged) {
+    private void mergeFile(StagingArea stagingArea, String file, Commit splitCommit,
+                           Commit currentCommit, Commit mergeCommit, AtomicBoolean isMerged) {
         String splitBlob = splitCommit.getBlobId(file);
         String currentBlob = currentCommit.getBlobId(file);
         String mergeBlob = mergeCommit.getBlobId(file);
         //Any files that have been modified in the given branch since the split point,
         //but not modified in the current branch
-        if (splitCommit.isBlobExists(file) && currentCommit.isBlobExists(file) && mergeCommit.isBlobExists(file) && !Objects.equals(mergeBlob, splitBlob) && Objects.equals(currentBlob, splitBlob)) {
+        if (splitCommit.isBlobExists(file)
+                && currentCommit.isBlobExists(file)
+                && mergeCommit.isBlobExists(file)
+                && !Objects.equals(mergeBlob, splitBlob)
+                && Objects.equals(currentBlob, splitBlob)) {
             checkoutFile(mergeCommit, file);
             stagingArea.stageFile(file, mergeBlob);
             return;
         }
         //Any files that were not present at the split point
         //and are present only in the given branch should be checked out and staged.
-        if (!splitCommit.isBlobExists(file) && !currentCommit.isBlobExists(file) && mergeCommit.isBlobExists(file)) {
+        if (!splitCommit.isBlobExists(file)
+                && !currentCommit.isBlobExists(file)
+                && mergeCommit.isBlobExists(file)) {
             checkoutFile(mergeCommit, file);
             stagingArea.stageFile(file, mergeBlob);
             return;
         }
         //Any files present at the split point, unmodified in the current branch,
         //and absent in the given branch should be removed (and untracked).
-        if (splitCommit.isBlobExists(file) && Objects.equals(currentBlob, splitBlob) && !mergeCommit.isBlobExists(file)) {
+        if (splitCommit.isBlobExists(file)
+                && Objects.equals(currentBlob, splitBlob)
+                && !mergeCommit.isBlobExists(file)) {
             rm(file);
             stagingArea.stageRemoval(file);
             return;
         }
-        if ((!Objects.equals(currentBlob, mergeBlob) && mergeCommit.isBlobExists(file) && currentCommit.isBlobExists(file))
-                || (!Objects.equals(currentBlob, splitBlob) && !mergeCommit.isBlobExists(file) && currentCommit.isBlobExists(file) && splitCommit.isBlobExists(file))
-                || (!Objects.equals(mergeBlob, splitBlob) && mergeCommit.isBlobExists(file) && !currentCommit.isBlobExists(file)) && splitCommit.isBlobExists(file)) {
+        if ((!Objects.equals(currentBlob, mergeBlob)
+                && mergeCommit.isBlobExists(file)
+                && currentCommit.isBlobExists(file)
+                && !Objects.equals(mergeBlob, splitBlob))
+                || (!Objects.equals(currentBlob, splitBlob)
+                && !mergeCommit.isBlobExists(file)
+                && currentCommit.isBlobExists(file)
+                && splitCommit.isBlobExists(file))
+                || (!Objects.equals(mergeBlob, splitBlob)
+                && mergeCommit.isBlobExists(file)
+                && !currentCommit.isBlobExists(file))
+                && splitCommit.isBlobExists(file)) {
             String conflictContent = "<<<<<<< HEAD" + "\n";
             if (currentBlob != null) {
                 conflictContent += readContentsAsString(new File(CWD, file));
@@ -378,7 +398,8 @@ public class Repository implements Serializable {
         List<String> stagedForAdditionList = stagingArea.getStagedForAdditionList();
         assert untrackedFiles != null;
         if (!untrackedFiles.isEmpty()) {
-            System.out.println("There is an untracked file in the way; " + "delete it, or add and commit it first.");
+            System.out.println("There is an untracked file in the way; "
+                    + "delete it, or add and commit it first.");
             System.exit(0);
         }
         Commit commit = Commit.load(commitId);
@@ -429,7 +450,9 @@ public class Repository implements Serializable {
             File file = new File(CWD, blob);
             String blobId = commit.getBlobId(blob);
             //Case: Tracked in the current commit, changed in the working directory, but not staged;
-            if (file.exists() && !stagingArea.isStagedForAddition(blob) && !Utils.sha1(Utils.readContentsAsString(file)).equals(blobId)) {
+            if (file.exists()
+                    && !stagingArea.isStagedForAddition(blob)
+                    && !Utils.sha1(Utils.readContentsAsString(file)).equals(blobId)) {
                 modifiedFiles.add(blob + " (modified)");
             }
         }
