@@ -286,42 +286,41 @@ public class Repository implements Serializable {
         String mergeBlob = mergeCommit.getBlobId(file);
         //Any files that have been modified in the given branch since the split point,
         //but not modified in the current branch
-        if (splitCommit.isBlobExists(file)
-                && currentCommit.isBlobExists(file)
-                && mergeCommit.isBlobExists(file)
-                && !Objects.equals(mergeBlob, splitBlob)
-                && Objects.equals(currentBlob, splitBlob)) {
+        if (splitCommit.isBlobExists(file) && currentCommit.isBlobExists(file) && mergeCommit.isBlobExists(file) && !Objects.equals(mergeBlob, splitBlob) && Objects.equals(currentBlob, splitBlob)) {
             checkoutFile(mergeCommit, file);
             stagingArea.stageFile(file, mergeBlob);
             return;
         }
         //Any files that were not present at the split point
         //and are present only in the given branch should be checked out and staged.
-        if (!splitCommit.isBlobExists(file)
-                && !currentCommit.isBlobExists(file)
-                && mergeCommit.isBlobExists(file)) {
+        if (!splitCommit.isBlobExists(file) && !currentCommit.isBlobExists(file) && mergeCommit.isBlobExists(file)) {
             checkoutFile(mergeCommit, file);
             stagingArea.stageFile(file, mergeBlob);
             return;
         }
         //Any files present at the split point, unmodified in the current branch,
         //and absent in the given branch should be removed (and untracked).
-        if (splitCommit.isBlobExists(file)
-                && Objects.equals(currentBlob, splitBlob)
-                && !mergeCommit.isBlobExists(file)) {
+        if (splitCommit.isBlobExists(file) && Objects.equals(currentBlob, splitBlob) && !mergeCommit.isBlobExists(file)) {
             rm(file);
             stagingArea.stageRemoval(file);
             return;
         }
-        if (!Objects.equals(currentBlob, mergeBlob)
-                && mergeCommit.isBlobExists(file)
-                && currentCommit.isBlobExists(file)) {
+        if ((!Objects.equals(currentBlob, mergeBlob) && mergeCommit.isBlobExists(file) && currentCommit.isBlobExists(file))
+                || (!Objects.equals(currentBlob, splitBlob) && !mergeCommit.isBlobExists(file) && currentCommit.isBlobExists(file))
+                || (!Objects.equals(mergeBlob, splitBlob) && mergeCommit.isBlobExists(file) && !currentCommit.isBlobExists(file))) {
             File currentFile = new File(CWD, file);
-            String currentContent = readContentsAsString(currentFile);
-            String mergeContent = readContentsAsString(Blob.getBlob(mergeBlob));
-            String conflictContent = "<<<<<<< HEAD\n" + currentContent + "\n" + "=======\n" + mergeContent + ">>>>>>>";
-            Utils.writeContents(currentFile, conflictContent);
-            stagingArea.stageFile(file, new Blob(currentFile).getId());
+            if (currentBlob == null) {
+                checkoutFile(mergeCommit, file);
+                stagingArea.stageFile(file, mergeBlob);
+                isMerged.set(true);
+                return;
+            } else if (mergeBlob != null) {
+                String currentContent = readContentsAsString(currentFile);
+                String mergeContent = readContentsAsString(Blob.getBlob(mergeBlob));
+                String conflictContent = "<<<<<<< HEAD\n" + currentContent + "\n" + "=======\n" + mergeContent + ">>>>>>>";
+                Utils.writeContents(currentFile, conflictContent);
+                stagingArea.stageFile(file, new Blob(currentFile).getId());
+            }
             isMerged.set(true);
         }
 
