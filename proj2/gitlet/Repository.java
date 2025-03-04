@@ -319,7 +319,7 @@ public class Repository implements Serializable {
             File currentFile = new File(CWD, file);
             String currentContent = readContentsAsString(currentFile);
             String mergeContent = readContentsAsString(Blob.getBlob(mergeBlob));
-            String conflictContent = "<<<<<<< HEAD\n" + currentContent + "\n" + "=======\n" + mergeContent + ">>>>>>>\n";
+            String conflictContent = "<<<<<<< HEAD\n" + currentContent + "\n" + "=======\n" + mergeContent + ">>>>>>>";
             Utils.writeContents(currentFile, conflictContent);
             stagingArea.stageFile(file, new Blob(currentFile).getId());
             isMerged.set(true);
