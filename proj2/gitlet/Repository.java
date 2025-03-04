@@ -306,21 +306,15 @@ public class Repository implements Serializable {
             return;
         }
         if ((!Objects.equals(currentBlob, mergeBlob) && mergeCommit.isBlobExists(file) && currentCommit.isBlobExists(file))
-                || (!Objects.equals(currentBlob, splitBlob) && !mergeCommit.isBlobExists(file) && currentCommit.isBlobExists(file))
-                || (!Objects.equals(mergeBlob, splitBlob) && mergeCommit.isBlobExists(file) && !currentCommit.isBlobExists(file))) {
+                || (!Objects.equals(currentBlob, splitBlob) && !mergeCommit.isBlobExists(file) && currentCommit.isBlobExists(file) && splitCommit.isBlobExists(file))
+                || (!Objects.equals(mergeBlob, splitBlob) && mergeCommit.isBlobExists(file) && !currentCommit.isBlobExists(file)) && splitCommit.isBlobExists(file)) {
             File currentFile = new File(CWD, file);
-            if (currentBlob == null) {
-                checkoutFile(mergeCommit, file);
-                stagingArea.stageFile(file, mergeBlob);
-                isMerged.set(true);
-                return;
-            } else if (mergeBlob != null) {
-                String currentContent = readContentsAsString(currentFile);
-                String mergeContent = readContentsAsString(Blob.getBlob(mergeBlob));
-                String conflictContent = "<<<<<<< HEAD\n" + currentContent + "\n" + "=======\n" + mergeContent + ">>>>>>>";
-                Utils.writeContents(currentFile, conflictContent);
-                stagingArea.stageFile(file, new Blob(currentFile).getId());
-            }
+            String currentContent = (currentBlob != null) ? readContentsAsString(new File(CWD, file)) : "";
+            String mergeContent = (mergeBlob != null) ? readContentsAsString(Blob.getBlob(mergeBlob)) : "";
+            String conflictContent = "<<<<<<< HEAD\n" + currentContent + "\n=======\n" + mergeContent + ">>>>>>>";
+            Utils.writeContents(currentFile, conflictContent);
+            stagingArea.stageFile(file, new Blob(currentFile).getId());
+
             isMerged.set(true);
         }
 
