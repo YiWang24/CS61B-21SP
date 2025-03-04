@@ -73,7 +73,7 @@ public class Repository implements Serializable {
             System.exit(0);
         }
         StagingArea stagingArea = StagingArea.loadStagingArea();
-        createCommit(message, stagingArea);
+        createCommit(message, stagingArea, null);
     }
 
     public void rm(String filename) {
@@ -271,22 +271,14 @@ public class Repository implements Serializable {
             MergeFile(stagingArea, file, splitCommit, currentCommit, mergeCommit, isMerged);
         }
         String message = String.format("Merged %s into %s.", branch, getHead());
-        Map<String, String> blobs = updateBlobs(currentCommit.getBlobs(), stagingArea);
-        Commit commit = new Commit(message, currentCommit.getCommitId(), mergeCommit.getCommitId(), blobs);
-        saveBranch(getHead(), commit.getCommitId());
+
+        createCommit(message, stagingArea, mergeCommit.getCommitId());
 
         if (isMerged.getPlain()) {
             System.out.println("Encountered a merge conflict.");
         }
     }
 
-    private Map<String, String> updateBlobs(Map<String, String> blobs, StagingArea stagingArea) {
-        blobs.putAll(stagingArea.getStagedForAddition());
-        for (String fileToRemove : stagingArea.getStagedForRemoval()) {
-            blobs.remove(fileToRemove);
-        }
-        return blobs;
-    }
 
     private void MergeFile(StagingArea stagingArea, String file, Commit splitCommit, Commit currentCommit, Commit mergeCommit, AtomicBoolean isMerged) {
         String splitBlob = splitCommit.getBlobId(file);
@@ -318,7 +310,7 @@ public class Repository implements Serializable {
                 && Objects.equals(currentBlob, splitBlob)
                 && !mergeCommit.isBlobExists(file)) {
             rm(file);
-            stagingArea.unstageFile(file);
+            stagingArea.stageRemoval(file);
             return;
         }
         if (!Objects.equals(currentBlob, mergeBlob)
@@ -493,7 +485,7 @@ public class Repository implements Serializable {
         return untrackedFiles;
     }
 
-    private void createCommit(String message, StagingArea stagingArea) {
+    private void createCommit(String message, StagingArea stagingArea, String mergeParent) {
         //find the parent commit
         Commit parentCommit = getCurrentCommit();
         Map<String, String> parentBlobs = parentCommit.getBlobs();
@@ -507,7 +499,7 @@ public class Repository implements Serializable {
         //Remove all staged for removal blobs from commit
         Commit.removeBlobsFromCommit(parentBlobs, stagingArea.getStagedForRemoval());
         //Create new commit
-        Commit commit = new Commit(message, parentCommit.getCommitId(), null, parentBlobs);
+        Commit commit = new Commit(message, parentCommit.getCommitId(), mergeParent, parentBlobs);
         stagingArea.clear();
         saveBranch(getHead(), commit.getCommitId());
     }
