@@ -76,7 +76,7 @@ public class Commit implements Serializable, Dumpable {
     }
 
     public String getBlobId(String blobName) {
-        if(!blobs.containsKey(blobName)) {
+        if (!blobs.containsKey(blobName)) {
             return null;
         }
         return blobs.get(blobName);

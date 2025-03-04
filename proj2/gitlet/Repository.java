@@ -247,8 +247,8 @@ public class Repository implements Serializable {
             System.exit(0);
         }
         if (!Objects.requireNonNull(getUntrackedFileList(stagingArea)).isEmpty()) {
-            System.out.println("There is an untracked file in the way;" +
-                    " delete it, or add and commit it first.");
+            System.out.println("There is an untracked file in the way;"
+                    + " delete it, or add and commit it first.");
             System.exit(0);
         }
         String splitPoint = findSplitPoint(currentCommit, mergeCommit);
