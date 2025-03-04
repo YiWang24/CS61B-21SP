@@ -234,12 +234,12 @@ public class Repository implements Serializable {
             System.out.println("You have uncommitted changes.");
             System.exit(0);
         }
-        Commit mergeCommit = Commit.load(getBranch(branch));
-        Commit currentCommit = getCurrentCommit();
-        if (mergeCommit == null) {
+        if (getBranch(branch) == null) {
             System.out.println("A branch with that name does not exist.");
             System.exit(0);
         }
+        Commit mergeCommit = Commit.load(getBranch(branch));
+        Commit currentCommit = getCurrentCommit();
         assert currentCommit != null;
         if (currentCommit.getCommitId().equals(mergeCommit.getCommitId())) {
             System.out.println("Cannot merge a branch with itself.");
@@ -308,12 +308,18 @@ public class Repository implements Serializable {
         if ((!Objects.equals(currentBlob, mergeBlob) && mergeCommit.isBlobExists(file) && currentCommit.isBlobExists(file))
                 || (!Objects.equals(currentBlob, splitBlob) && !mergeCommit.isBlobExists(file) && currentCommit.isBlobExists(file) && splitCommit.isBlobExists(file))
                 || (!Objects.equals(mergeBlob, splitBlob) && mergeCommit.isBlobExists(file) && !currentCommit.isBlobExists(file)) && splitCommit.isBlobExists(file)) {
-            File currentFile = new File(CWD, file);
-            String currentContent = (currentBlob != null) ? readContentsAsString(new File(CWD, file)) : "";
-            String mergeContent = (mergeBlob != null) ? readContentsAsString(Blob.getBlob(mergeBlob)) : "";
-            String conflictContent = "<<<<<<< HEAD\n" + currentContent + "=======\n" + mergeContent + ">>>>>>>";
-            Utils.writeContents(currentFile, conflictContent);
-            stagingArea.stageFile(file, new Blob(currentFile).getId());
+            String conflictContent = "<<<<<<< HEAD" + "\n";
+            if (currentBlob != null) {
+                conflictContent += readContentsAsString(new File(CWD, file));
+            }
+            conflictContent += "=======" + "\n";
+            if (mergeBlob != null) {
+                conflictContent += readContentsAsString(Blob.getBlob(mergeBlob));
+            }
+            conflictContent += ">>>>>>>" + "\n";
+            File conflictFile = new File(CWD, file);
+            Utils.writeContents(conflictFile, conflictContent);
+            stagingArea.stageFile(file, new Blob(conflictFile).getId());
             isMerged.set(true);
         }
 
@@ -321,31 +327,25 @@ public class Repository implements Serializable {
 
     private String findSplitPoint(Commit currentBranch, Commit mergeBranch) {
         Set<String> visited = new HashSet<>();
-        String commit1 = currentBranch.getCommitId();
-        String commit2 = mergeBranch.getCommitId();
-        Queue<String> queue1 = new LinkedList<>();
-        Queue<String> queue2 = new LinkedList<>();
+        Queue<String> queue = new LinkedList<>();
 
-        queue1.add(commit1);
-        queue2.add(commit2);
+        queue.add(currentBranch.getCommitId());
+        queue.add(mergeBranch.getCommitId());
 
-        while (!queue1.isEmpty() || !queue2.isEmpty()) {
-            if (!queue1.isEmpty()) {
-                String current = queue1.poll();
-                if (visited.contains(current)) {
-                    return current;
-                }
-                visited.add(current);
-                queue1.add(Commit.getParent(commit1));
+        while (!queue.isEmpty()) {
+            String currentCommitId = queue.poll();
+            if (visited.contains(currentCommitId)) {
+                return currentCommitId;
             }
-
-            if (!queue2.isEmpty()) {
-                String current = queue2.poll();
-                if (visited.contains(current)) {
-                    return current;
+            visited.add(currentCommitId);
+            Commit currentCommit = Commit.load(currentCommitId);
+            if (currentCommit != null) {
+                if (currentCommit.getParent() != null) {
+                    queue.add(currentCommit.getParent());
                 }
-                visited.add(current);
-                queue2.add(Commit.getParent(commit2));
+                if (currentCommit.getMergeParent() != null) {
+                    queue.add(currentCommit.getMergeParent());
+                }
             }
         }
         return null;
