@@ -76,7 +76,10 @@ public class Repository implements Serializable {
     }
 
     public void rm(String filename) {
-        File removeFile = readFile(filename);
+        File removeFile = new File(filename);
+        if (!removeFile.exists()) {
+            System.exit(0);
+        }
         StagingArea stagingArea = StagingArea.loadStagingArea();
         //Unstage the file if it is currently staged for addition.
         if (stagingArea.isStagedForAddition(filename)) {
@@ -180,11 +183,19 @@ public class Repository implements Serializable {
         if (args.length == 3 && args[1].equals("--")) {
             checkoutFile(getCurrentCommit(), args[2]);
         } else if (args.length == 4 && args[2].equals("--")) {
-            checkoutFile(Commit.load(args[1]), args[3]);
+            String commitId = args[1];
+            if(commitId.length() == 8){
+                commitId = findCommitByPrefix(commitId);
+            }
+            checkoutFile(Commit.load(commitId), args[3]);
         } else if (args.length == 2) {
-            checkoutBranch(args[1]);
+            String commitId = args[1];
+            if(commitId.length() == 8){
+                commitId = findCommitByPrefix(commitId);
+            }
+            checkoutBranch(commitId);
         } else {
-            System.out.println("File does not exist in that commit.");
+            System.out.println("Incorrect operands.");
             System.exit(0);
         }
     }
@@ -202,7 +213,8 @@ public class Repository implements Serializable {
             System.out.println("A branch with that name does not exist.");
             System.exit(0);
         }
-        if (getBranch(branch).equals(getHead())) {
+        File branchFile = new File(BRANCH_DIR, branch);
+        if (branchFile.getName().equals(getHead())) {
             System.out.println("Cannot remove the current branch.");
             System.exit(0);
         }
@@ -210,8 +222,22 @@ public class Repository implements Serializable {
     }
 
     public void reset(String commitId) {
+
         checkoutCommit(commitId);
         saveBranch(getHead(), commitId);
+    }
+
+    private String findCommitByPrefix(String prefix) {
+        Set<Commit> commits = getAllCommits();
+        if(commits == null) {
+            return null;
+        }
+        for (Commit commit : commits) {
+            if (commit.getCommitId().startsWith(prefix)) {
+                return commit.getCommitId();
+            }
+        }
+        return null;
     }
 
     private void checkoutFile(Commit commit, String fileName) {
@@ -234,10 +260,10 @@ public class Repository implements Serializable {
         Utils.writeContents(currentFile, content);
     }
 
-
     private void checkoutCommit(String commitId) {
         StagingArea stagingArea = StagingArea.loadStagingArea();
         List<String> untrackedFiles = getUntrackedFileList(stagingArea);
+        List<String> stagedForAdditionList = stagingArea.getStagedForAdditionList();
         assert untrackedFiles != null;
         if (!untrackedFiles.isEmpty()) {
             System.out.println("There is an untracked file in the way; " + "delete it, or add and commit it first.");
@@ -258,6 +284,13 @@ public class Repository implements Serializable {
         for (String blob : getCurrentCommit().getBlobsList()) {
             if (!commit.isBlobExists(blob)) {
                 File fileToDelete = new File(CWD, blob);
+                Utils.restrictedDelete(fileToDelete);
+            }
+        }
+        //Remove tracked files that are not present in that commit
+        for (String stagedFile : stagedForAdditionList) {
+            if(!commit.isBlobExists(stagedFile)) {
+                File fileToDelete = new File(CWD, stagedFile);
                 Utils.restrictedDelete(fileToDelete);
             }
         }
