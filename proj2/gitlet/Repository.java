@@ -77,7 +77,7 @@ public class Repository implements Serializable {
     }
 
     public void rm(String filename) {
-        File removeFile = new File(filename);
+        File removeFile = new File(CWD, filename);
         if (!removeFile.exists()) {
             System.exit(0);
         }
@@ -133,7 +133,6 @@ public class Repository implements Serializable {
         }
     }
 
-
     public void status() {
         StagingArea stagingArea = StagingArea.loadStagingArea();
         StringBuilder log = new StringBuilder("=== Branches ===" + "\n");
@@ -156,7 +155,7 @@ public class Repository implements Serializable {
         log.append("\n").append("=== Removed Files ===").append("\n");
         List<String> stagedForRemovalList = stagingArea.getStagedForRemovalList();
         for (String blob : getCurrentCommit().getBlobsList()) {
-            File file = new File(blob);
+            File file = new File(CWD, blob);
             //Case: If file is in Commit but removed manually, add this file in staged for removal;
             if (!file.exists() && !stagingArea.isStagedForRemoval(blob)) {
                 stagedForRemovalList.add(blob);
@@ -246,7 +245,7 @@ public class Repository implements Serializable {
             System.out.println("Cannot merge a branch with itself.");
             System.exit(0);
         }
-        if (getUntrackedFileList(stagingArea) != null) {
+        if (!Objects.requireNonNull(getUntrackedFileList(stagingArea)).isEmpty()) {
             System.out.println("There is an untracked file in the way; delete it, or add and commit it first.");
             System.exit(0);
         }
@@ -262,8 +261,6 @@ public class Repository implements Serializable {
             System.out.println("Current branch fast-forwarded.");
             System.exit(0);
         }
-
-        Map<String, String> newBlobs = new HashMap<>();
         AtomicBoolean isMerged = new AtomicBoolean(false);
         Set<String> allFiles = new HashSet<>();
         assert splitCommit != null;
@@ -271,36 +268,62 @@ public class Repository implements Serializable {
         allFiles.addAll(currentCommit.getBlobsList());
         allFiles.addAll(mergeCommit.getBlobsList());
         for (String file : allFiles) {
-            MergeFile(stagingArea, newBlobs, file, splitCommit, currentCommit, mergeCommit, isMerged);
+            MergeFile(stagingArea, file, splitCommit, currentCommit, mergeCommit, isMerged);
         }
-        String message = String.format("Merged [%s] into [%s].", branch, getHead());
-        new Commit(message, currentCommit.getCommitId(), mergeCommit.getCommitId(), currentCommit.getBlobs());
+        String message = String.format("Merged %s into %s.", branch, getHead());
+        Map<String, String> blobs = updateBlobs(currentCommit.getBlobs(), stagingArea);
+        Commit commit = new Commit(message, currentCommit.getCommitId(), mergeCommit.getCommitId(), blobs);
+        saveBranch(getHead(), commit.getCommitId());
+
         if (isMerged.getPlain()) {
             System.out.println("Encountered a merge conflict.");
         }
     }
 
-    private void MergeFile(StagingArea stagingArea, Map<String, String> newBlobs, String file, Commit splitCommit, Commit currentCommit, Commit mergeCommit, AtomicBoolean isMerged) {
+    private Map<String, String> updateBlobs(Map<String, String> blobs, StagingArea stagingArea) {
+        blobs.putAll(stagingArea.getStagedForAddition());
+        for (String fileToRemove : stagingArea.getStagedForRemoval()) {
+            blobs.remove(fileToRemove);
+        }
+        return blobs;
+    }
+
+    private void MergeFile(StagingArea stagingArea, String file, Commit splitCommit, Commit currentCommit, Commit mergeCommit, AtomicBoolean isMerged) {
         String splitBlob = splitCommit.getBlobId(file);
         String currentBlob = currentCommit.getBlobId(file);
         String mergeBlob = mergeCommit.getBlobId(file);
         //Any files that have been modified in the given branch since the split point,
         //but not modified in the current branch
-        if (!mergeBlob.equals(splitBlob) && currentBlob.equals(mergeBlob)) {
+        if (splitCommit.isBlobExists(file)
+                && currentCommit.isBlobExists(file)
+                && mergeCommit.isBlobExists(file)
+                && !Objects.equals(mergeBlob, splitBlob)
+                && Objects.equals(currentBlob, splitBlob)) {
             checkoutFile(mergeCommit, file);
             stagingArea.stageFile(file, mergeBlob);
             return;
         }
-        if (!splitCommit.isBlobExists(file) && !currentCommit.isBlobExists(file) && mergeCommit.isBlobExists(file)) {
+        //Any files that were not present at the split point
+        //and are present only in the given branch should be checked out and staged.
+        if (!splitCommit.isBlobExists(file)
+                && !currentCommit.isBlobExists(file)
+                && mergeCommit.isBlobExists(file)) {
             checkoutFile(mergeCommit, file);
             stagingArea.stageFile(file, mergeBlob);
             return;
         }
-        if (splitCommit.isBlobExists(file) && currentBlob.equals(mergeBlob) && !mergeCommit.isBlobExists(file)) {
+        //Any files present at the split point, unmodified in the current branch,
+        //and absent in the given branch should be removed (and untracked).
+        if (splitCommit.isBlobExists(file)
+                && Objects.equals(currentBlob, splitBlob)
+                && !mergeCommit.isBlobExists(file)) {
             rm(file);
+            stagingArea.unstageFile(file);
             return;
         }
-        if (!currentBlob.equals(mergeBlob)) {
+        if (!Objects.equals(currentBlob, mergeBlob)
+                && mergeCommit.isBlobExists(file)
+                && currentCommit.isBlobExists(file)) {
             String currentContent = readContentsAsString(new File(CWD, file));
             String mergeContent = readContentsAsString(new File(BLOB_DIR, mergeBlob));
             String conflictContent = "<<<<<<< HEAD\n" + currentContent + "=======\n" + mergeContent + ">>>>>>>\n";
@@ -419,7 +442,7 @@ public class Repository implements Serializable {
     private List<String> getModificationsNotStagedList(Commit commit, StagingArea stagingArea) {
         List<String> modifiedFiles = new ArrayList<>();
         for (String blob : commit.getBlobsList()) {
-            File file = new File(blob);
+            File file = new File(CWD, blob);
             String blobId = commit.getBlobId(blob);
             //Case: Tracked in the current commit, changed in the working directory, but not staged;
             if (file.exists() && !stagingArea.isStagedForAddition(blob) && !Utils.sha1(Utils.readContentsAsString(file)).equals(blobId)) {
@@ -427,7 +450,7 @@ public class Repository implements Serializable {
             }
         }
         for (String blob : stagingArea.getStagedForAdditionList()) {
-            File file = new File(blob);
+            File file = new File(CWD, blob);
             String blobId = stagingArea.getStagedForAddition().get(blob);
             //Staged for addition, but with different contents than in the working directory;
             if (file.exists() && !Utils.sha1(Utils.readContentsAsString(file)).equals(blobId)) {
@@ -449,7 +472,7 @@ public class Repository implements Serializable {
             return null;
         }
         for (String file : list) {
-            File f = new File(file);
+            File f = new File(CWD, file);
             if (f.isDirectory()) {
                 continue;
             }
@@ -531,7 +554,7 @@ public class Repository implements Serializable {
     }
 
     private File readFile(String fileName) {
-        File file = new File(fileName);
+        File file = new File(CWD, fileName);
         if (!file.exists()) {
             System.out.println("File does not exist.");
             System.exit(0);
