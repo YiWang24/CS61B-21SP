@@ -5,7 +5,8 @@ import java.io.Serializable;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static gitlet.Utils.*;
+import static gitlet.Utils.join;
+import static gitlet.Utils.readContentsAsString;
 
 
 /**
@@ -29,6 +30,7 @@ public class Repository implements Serializable {
     public static final File BLOB_DIR = new File(GITLET_DIR, "blobs");
     public static final File STAGING_DIR = new File(GITLET_DIR, "stagingArea");
     public static final File HEAD = new File(GITLET_DIR, "HEAD");
+    public static final File REMOTE_DIR = new File(GITLET_DIR, "remotes");
 
 
     public void init() {
@@ -43,6 +45,7 @@ public class Repository implements Serializable {
         BRANCH_DIR.mkdir();
         STAGING_DIR.mkdir();
         BLOB_DIR.mkdir();
+        REMOTE_DIR.mkdir();
         // create initial commit
         Commit initCommit = new Commit();
         //create default branch
@@ -158,9 +161,9 @@ public class Repository implements Serializable {
         for (String blob : getCurrentCommit().getBlobsList()) {
             File file = new File(CWD, blob);
             //Case: If file is in Commit but removed manually, add this file in staged for removal;
-            if (!file.exists() && !stagingArea.isStagedForRemoval(blob)) {
-                stagedForRemovalList.add(blob);
-            }
+//            if (!file.exists() && !stagingArea.isStagedForRemoval(blob)) {
+//                stagedForRemovalList.add(blob);
+//            }
         }
         for (String removedFile : stagedForRemovalList) {
             log.append(removedFile).append("\n");
@@ -281,6 +284,113 @@ public class Repository implements Serializable {
         }
     }
 
+    public void addRemote(String name, String path) {
+        getRemoteFile(name, "A remote with that name already exists.", false);
+        Utils.writeContents(new File(REMOTE_DIR, name), path.replace("/", File.separator));
+    }
+
+    public void removeRemote(String name) {
+        getRemoteFile(name, "A remote with that name does not exist.", true);
+        new File(REMOTE_DIR, name).delete();
+    }
+
+    public void push(String name, String branch) {
+        String remotePath = getRemoteFile(name, "Remote directory not found.", true);
+        File remoteFile = new File(remotePath);
+        if (!remoteFile.exists()) {
+            System.out.println("Remote directory not found.");
+            System.exit(0);
+        }
+        File remoteBranchFile = new File(remotePath, "branches" + File.separator + branch);
+        String localHead = getHead();
+        if (!remoteBranchFile.exists()) {
+            Utils.writeContents(remoteBranchFile, localHead);
+            copyFile(CWD, localHead, remoteFile, null);
+            return;
+        }
+        String remoteHead = Utils.readContentsAsString(remoteBranchFile);
+        Set<Commit> commits = Commit.getAllCommits();
+        boolean branchExists = false;
+        for (Commit commit : commits) {
+            if (commit.getCommitId().equals(remoteHead)) {
+                branchExists = true;
+            }
+        }
+        if (!branchExists) {
+            System.out.println("Please pull down remote changes before pushing.");
+            System.exit(0);
+        }
+        copyFile(CWD, localHead, remoteFile, remoteHead);
+        Utils.writeContents(remoteBranchFile, localHead);
+
+    }
+
+    public void fetch(String name, String branch) {
+        String remotePath = getRemoteFile(name, "Remote directory not found.", true);
+        File remoteBranchFile = new File(remotePath, "branches" + File.separator + branch);
+        if (!remoteBranchFile.exists()) {
+            System.out.println("That remote does not have that branch.");
+            System.exit(0);
+        }
+        String remoteHead = Utils.readContentsAsString(remoteBranchFile);
+        File remoteFile = new File(remotePath);
+        copyFile(remoteFile, remoteHead, GITLET_DIR, null);
+        File localRemoteBranch = new File(BRANCH_DIR, name + File.separator + branch);
+        localRemoteBranch.getParentFile().mkdir();
+        Utils.writeContents(localRemoteBranch, remoteHead);
+    }
+
+    public void pull(String name, String branch) {
+        fetch(name, branch);
+        merge(name + File.separator + branch);
+    }
+
+    private void copyFile(File fromPath, String fromHead, File toPath, String toHead) {
+        File fromCommitDir = new File(fromPath, "commits");
+        File toCommitDir = new File(toPath, "commits");
+        while (!Objects.equals(fromHead, toHead)) {
+            copySingleFile(fromCommitDir, toCommitDir, fromHead, true);
+            fromHead = Utils.readObject(new File(fromCommitDir, fromHead), Commit.class).getParent();
+        }
+
+        File fromBlobsDir = new File(fromPath, "blobs");
+        File toBlobsDir = new File(toPath, "blobs");
+        for (String dir : Objects.requireNonNull(fromBlobsDir.list())) {
+            copySingleFile(fromBlobsDir, toBlobsDir, dir, false);
+            for (String blob : Objects.requireNonNull(new File(fromBlobsDir, dir).list())) {
+                copySingleFile(new File(fromBlobsDir, dir), new File(toBlobsDir, dir), blob, false);
+            }
+        }
+    }
+
+    private void copySingleFile(File fromDir, File toDir, String filename, boolean isCommit) {
+        File fromFile = new File(fromDir, filename);
+        File toFile = new File(toDir, filename);
+        if (!toFile.exists()) {
+            if (fromFile.isDirectory()) {
+                toFile.mkdir();
+                return;
+            }
+            if (!isCommit) {
+                Utils.writeContents(toFile, Utils.readContentsAsString(fromFile));
+            } else {
+
+                Utils.writeObject(toFile, Utils.readObject(fromFile, Commit.class));
+            }
+        }
+    }
+
+    private String getRemoteFile(String name, String message, Boolean shouldExist) {
+        File remoteFile = new File(REMOTE_DIR, name);
+        if (shouldExist && !remoteFile.exists()) {
+            System.out.println(message);
+            System.exit(0);
+        } else if (!shouldExist && remoteFile.exists()) {
+            System.out.println(message);
+            System.exit(0);
+        }
+        return remoteFile.exists() ? Utils.readContentsAsString(remoteFile) : null;
+    }
 
     private void mergeFile(StagingArea stagingArea, String file, Commit splitCommit,
                            Commit currentCommit, Commit mergeCommit, AtomicBoolean isMerged) {
@@ -454,6 +564,10 @@ public class Repository implements Serializable {
                     && !stagingArea.isStagedForAddition(blob)
                     && !Utils.sha1(Utils.readContentsAsString(file)).equals(blobId)) {
                 modifiedFiles.add(blob + " (modified)");
+            }
+            //Not staged for removal, but tracked in the current commit and deleted from the working directory.
+            if (!file.exists() && !stagingArea.isStagedForRemoval(blob)) {
+                modifiedFiles.add(blob + " (deleted)");
             }
         }
         for (String blob : stagingArea.getStagedForAdditionList()) {

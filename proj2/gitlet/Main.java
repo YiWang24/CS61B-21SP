@@ -74,6 +74,26 @@ public class Main {
                 validate(args, 2);
                 repository.merge(args[1]);
                 break;
+            case "add-remote":
+                validate(args, 3);
+                repository.addRemote(args[1], args[2]);
+                break;
+            case "rm-remote":
+                validate(args, 2);
+                repository.removeRemote(args[1]);
+                break;
+            case "push":
+                validate(args, 3);
+                repository.push(args[1], args[2]);
+                break;
+            case "fetch":
+                validate(args, 3);
+                repository.fetch(args[1], args[2]);
+                break;
+            case "pull":
+                validate(args, 3);
+                repository.pull(args[1], args[2]);
+                break;
             default:
                 System.out.println("No command with that name exists.");
                 System.exit(0);

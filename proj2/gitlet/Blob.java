@@ -22,9 +22,6 @@ public class Blob {
         return id;
     }
 
-    public String getContent() {
-        return content;
-    }
 
     public void saveBlob() {
         File blobDir = Repository.BLOB_DIR;
@@ -35,17 +32,6 @@ public class Blob {
         File blobFile = new File(blobFileDir, id.substring(2));
         if (!blobFile.exists()) {
             Utils.writeContents(blobFile, content);
-        }
-    }
-
-    public static void removeBlob(String blobId) {
-        File blobDir = Repository.BLOB_DIR;
-        File blobFile = getBlob(blobId);
-        if (blobFile.exists()) {
-            blobFile.delete();
-        }
-        if (blobDir.isDirectory() && blobDir.list().length == 0) {
-            blobDir.delete();
         }
     }
 

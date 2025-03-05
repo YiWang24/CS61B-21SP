@@ -40,7 +40,17 @@ public class StagingArea implements Serializable, Dumpable {
             return newStagingArea;
         }
     }
+    public static StagingArea loadStagingArea(File path) {
+        File stagingArea = new File(path, "stagingArea");
 
+        if (stagingArea.exists()) {
+            return Utils.readObject(stagingArea, StagingArea.class);
+        } else {
+            StagingArea newStagingArea = new StagingArea();
+            Utils.writeObject(stagingArea, newStagingArea);
+            return newStagingArea;
+        }
+    }
 
     /**
      * Stage a file for addition
