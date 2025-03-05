@@ -292,10 +292,10 @@ public class Repository implements Serializable {
             System.exit(0);
         }
         File remoteBranchFile = new File(remotePath, "branches" + File.separator + branch);
-        String localHead = getHead();
+        String localHead = getCurrentCommit().getCommitId();
         if (!remoteBranchFile.exists()) {
             Utils.writeContents(remoteBranchFile, localHead);
-            copyFile(CWD, localHead, remoteFile, null);
+            copyFile(GITLET_DIR, localHead, remoteFile, null);
             return;
         }
         String remoteHead = Utils.readContentsAsString(remoteBranchFile);
@@ -342,6 +342,7 @@ public class Repository implements Serializable {
     private void copyFile(File fromPath, String fromHead, File toPath, String toHead) {
         File fromCommitDir = new File(fromPath, "commits");
         File toCommitDir = new File(toPath, "commits");
+
         while (!Objects.equals(fromHead, toHead)) {
             copySingleFile(fromCommitDir, toCommitDir, fromHead, true);
             Commit commit = Utils.readObject(new File(fromCommitDir, fromHead), Commit.class);
