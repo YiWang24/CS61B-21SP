@@ -82,9 +82,6 @@ public class Repository implements Serializable {
 
     public void rm(String filename) {
         File removeFile = new File(CWD, filename);
-        if (!removeFile.exists()) {
-            System.exit(0);
-        }
         StagingArea stagingArea = StagingArea.loadStagingArea();
         //Unstage the file if it is currently staged for addition.
         if (stagingArea.isStagedForAddition(filename)) {
@@ -158,13 +155,6 @@ public class Repository implements Serializable {
         //Print all removed files
         log.append("\n").append("=== Removed Files ===").append("\n");
         List<String> stagedForRemovalList = stagingArea.getStagedForRemovalList();
-        for (String blob : getCurrentCommit().getBlobsList()) {
-            File file = new File(CWD, blob);
-            //Case: If file is in Commit but removed manually, add this file in staged for removal;
-//            if (!file.exists() && !stagingArea.isStagedForRemoval(blob)) {
-//                stagedForRemovalList.add(blob);
-//            }
-        }
         for (String removedFile : stagedForRemovalList) {
             log.append(removedFile).append("\n");
         }
@@ -320,20 +310,24 @@ public class Repository implements Serializable {
             System.out.println("Please pull down remote changes before pushing.");
             System.exit(0);
         }
-        copyFile(CWD, localHead, remoteFile, remoteHead);
+        copyFile(GITLET_DIR, localHead, remoteFile, remoteHead);
         Utils.writeContents(remoteBranchFile, localHead);
 
     }
 
     public void fetch(String name, String branch) {
         String remotePath = getRemoteFile(name, "Remote directory not found.", true);
+        File remoteFile = new File(remotePath);
+        if (!remoteFile.exists()) {
+            System.out.println("Remote directory not found.");
+            System.exit(0);
+        }
         File remoteBranchFile = new File(remotePath, "branches" + File.separator + branch);
         if (!remoteBranchFile.exists()) {
             System.out.println("That remote does not have that branch.");
             System.exit(0);
         }
         String remoteHead = Utils.readContentsAsString(remoteBranchFile);
-        File remoteFile = new File(remotePath);
         copyFile(remoteFile, remoteHead, GITLET_DIR, null);
         File localRemoteBranch = new File(BRANCH_DIR, name + File.separator + branch);
         localRemoteBranch.getParentFile().mkdir();
@@ -350,11 +344,13 @@ public class Repository implements Serializable {
         File toCommitDir = new File(toPath, "commits");
         while (!Objects.equals(fromHead, toHead)) {
             copySingleFile(fromCommitDir, toCommitDir, fromHead, true);
-            fromHead = Utils.readObject(new File(fromCommitDir, fromHead), Commit.class).getParent();
+            Commit commit = Utils.readObject(new File(fromCommitDir, fromHead), Commit.class);
+            fromHead = commit.getParent();
         }
 
         File fromBlobsDir = new File(fromPath, "blobs");
         File toBlobsDir = new File(toPath, "blobs");
+
         for (String dir : Objects.requireNonNull(fromBlobsDir.list())) {
             copySingleFile(fromBlobsDir, toBlobsDir, dir, false);
             for (String blob : Objects.requireNonNull(new File(fromBlobsDir, dir).list())) {
@@ -374,7 +370,6 @@ public class Repository implements Serializable {
             if (!isCommit) {
                 Utils.writeContents(toFile, Utils.readContentsAsString(fromFile));
             } else {
-
                 Utils.writeObject(toFile, Utils.readObject(fromFile, Commit.class));
             }
         }
@@ -565,7 +560,8 @@ public class Repository implements Serializable {
                     && !Utils.sha1(Utils.readContentsAsString(file)).equals(blobId)) {
                 modifiedFiles.add(blob + " (modified)");
             }
-            //Not staged for removal, but tracked in the current commit and deleted from the working directory.
+            //Not staged for removal, but tracked in the current commit
+            //and deleted from the working directory.
             if (!file.exists() && !stagingArea.isStagedForRemoval(blob)) {
                 modifiedFiles.add(blob + " (deleted)");
             }
