@@ -191,7 +191,7 @@ public class MyHashMap<K, V> implements Map61B<K, V> {
             throw new IllegalArgumentException();
         }
         if ((double) size / initialSize > loadFactor) {
-            resize(2 * buckets.length);
+            resize(2 * initialSize);
         }
         int i = hash(key);
         if (buckets[i] == null) {
@@ -237,6 +237,7 @@ public class MyHashMap<K, V> implements Map61B<K, V> {
                 if (node.key.equals(key)) {
                     V value = node.value;
                     buckets[i].remove(node);
+                    size = size - 1;
                     return value;
                 }
             }
@@ -252,6 +253,7 @@ public class MyHashMap<K, V> implements Map61B<K, V> {
                 if (node.key.equals(key) && node.value == value) {
                     V remove = node.value;
                     buckets[i].remove(node);
+                    size = size - 1;
                     return remove;
                 }
             }

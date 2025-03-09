@@ -1,7 +1,6 @@
 package bstmap;
 
-import java.util.Iterator;
-import java.util.Set;
+import java.util.*;
 
 /**
  * @author WY
@@ -22,6 +21,37 @@ public class BSTMap<K extends Comparable<K>, V> implements Map61B<K, V> {
         }
     }
 
+    private class BSTMapIterator implements Iterator<K> {
+        private Stack<Entry> stack;
+
+        public BSTMapIterator() {
+            stack = new Stack<>();
+            pushLeft(root);
+        }
+
+        private void pushLeft(Entry entry) {
+            while (entry != null) {
+                stack.push(entry);
+                entry = entry.left;
+            }
+        }
+
+        @Override
+        public boolean hasNext() {
+            return !stack.isEmpty();
+        }
+
+        @Override
+        public K next() {
+            if (!hasNext()) {
+                throw new NoSuchElementException();
+            }
+            Entry entry = stack.pop();
+            pushLeft(entry.right);
+            return entry.key;
+        }
+    }
+
     private Entry root;
     private int size;
 
@@ -33,10 +63,7 @@ public class BSTMap<K extends Comparable<K>, V> implements Map61B<K, V> {
 
     @Override
     public boolean containsKey(K key) {
-        if(root == null) {
-            return false;
-        }
-        return get(root, key).key != null;
+        return get(root, key) != null;
     }
 
     @Override
@@ -48,10 +75,13 @@ public class BSTMap<K extends Comparable<K>, V> implements Map61B<K, V> {
             return null;
         }
         Entry entry = get(root, key);
-        return entry.value;
+        return (entry == null) ? null : entry.value;
     }
 
     private Entry get(Entry entry, K k) {
+        if (entry == null) {
+            return null;
+        }
         int cmp = k.compareTo(entry.key);
         if (cmp < 0) {
             return get(entry.left, k);
@@ -93,25 +123,117 @@ public class BSTMap<K extends Comparable<K>, V> implements Map61B<K, V> {
 
 
     public Set<K> keySet() {
-        throw new UnsupportedOperationException();
+        Set<K> keys = new HashSet<>();
+        inOrder(root, keys);
+        return keys;
+    }
+
+    private void inOrder(Entry entry, Set<K> keys) {
+        if (entry == null) {
+            return;
+        }
+        inOrder(entry.left, keys);
+        keys.add(entry.key);
+        inOrder(entry.right, keys);
     }
 
 
+    private Entry min(Entry entry) {
+        while (entry.left != null) {
+            entry = entry.left;
+        }
+        return entry;
+    }
+
+    private Entry findEntry(Entry entry, K key) {
+        if (entry == null) {
+            return null;
+        }
+        int cmp = key.compareTo(entry.key);
+        if (cmp < 0) {
+            return findEntry(entry.left, key);
+        } else if (cmp > 0) {
+            return findEntry(entry.right, key);
+        }
+        return entry;
+    }
+
+    private Entry remove(Entry entry, K key) {
+        if (entry == null) {
+            return null;
+        }
+        int cmp = key.compareTo(entry.key);
+        if (cmp < 0) {
+            entry.left = remove(entry.left, key);
+        } else if (cmp > 0) {
+            entry.right = remove(entry.right, key);
+        } else {
+            if (entry.left == null && entry.right == null) {
+                return null;
+            }
+            if (entry.left == null) {
+                return entry.right;
+            }
+            if (entry.right == null) {
+                return entry.left;
+            }
+            Entry successor = min(entry.right);
+            entry.key = successor.key;
+            entry.value = successor.value;
+            entry.right = remove(entry.right, successor.key);
+        }
+        return entry;
+    }
+
     public V remove(K key) {
-        throw new UnsupportedOperationException();
+        if (key == null) {
+            throw new IllegalArgumentException("key is null");
+        }
+        Entry removed = findEntry(root, key);
+        if (removed == null) {
+            return null;
+        }
+        root = remove(root, key);
+        size = size - 1;
+        return removed.value;
     }
 
 
     public V remove(K key, V value) {
-        throw new UnsupportedOperationException();
+        if (key == null) {
+            throw new IllegalArgumentException("key is null");
+        }
+        Entry removed = findEntry(root, key);
+        if (removed == null) {
+            return null;
+        } else if (!removed.value.equals(value)) {
+            return null;
+        }
+        root = remove(root, key);
+        size = size - 1;
+        return removed.value;
+
     }
 
 
     public Iterator<K> iterator() {
-        throw new UnsupportedOperationException();
+        return new BSTMapIterator();
     }
 
 
     public void printInOrder() {
+        printInOrder(root);
+    }
+
+    private void printInOrder(Entry entry) {
+        if (entry == null) {
+            return;
+        }
+
+        printInOrder(entry.left);
+        System.out.println(entry.key + " -> " + entry.value);
+        printInOrder(entry.right);
+
+
     }
 }
